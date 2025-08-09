@@ -1,0 +1,644 @@
+import { calculateAll } from './calculations.js';
+import { updateUI, updateDynamicSections } from './ui.js';
+import { handleToggle } from './utils.js';
+import { calculateClosingCosts } from './features/closing-costs.js';
+import { calculateExtraPayments } from './features/extra-payments.js';
+import { renderScenarioTable, clearAllScenarios } from './features/scenarios.js';
+import { calculateMaxPurchasePrice } from './features/max-purchase-price.js';
+
+document.addEventListener('DOMContentLoaded', function () { 
+	// --- DOM Element References --- 
+	const allInputs = Array.from(document.getElementById('mortgage-form').querySelectorAll('input, select, button')); 
+	const homePriceInput = document.getElementById('home-price'); 
+	const downPaymentDollarInput = document.getElementById('down-payment-dollar'); 
+	const downPaymentPercentInput = document.getElementById('down-payment-percent'); 
+	const loanAmountInput = document.getElementById('loan-amount'); 
+	const loanTermInput = document.getElementById('loan-term'); 
+	const creditScoreInput = document.getElementById('credit-score'); 
+	const hoaInput = document.getElementById('hoa'); 
+	const ltvPercentInput = document.getElementById('ltv-percent'); 
+
+	// Unified Input Fields 
+	const interestRateInput = document.getElementById('interest-rate'); 
+	const propertyTaxMonthlyInput = document.getElementById('property-tax-monthly');
+	const propertyTaxYearlyInput = document.getElementById('property-tax-yearly');
+	const homeInsuranceMonthlyInput = document.getElementById('home-insurance-monthly');
+	const homeInsuranceYearlyInput = document.getElementById('home-insurance-yearly');
+	const miMonthlyInput = document.getElementById('mi-monthly');
+	const miPercentInput = document.getElementById('mi-percent');
+	
+	// Estimate Display Elements 
+	const interestRateEstimateEl = document.getElementById('interest-rate-estimate'); 
+	const propertyTaxEstimateEl = document.getElementById('property-tax-estimate'); 
+	const homeInsuranceEstimateEl = document.getElementById('home-insurance-estimate'); 
+	const miEstimateEl = document.getElementById('mi-estimate'); 
+
+	const homePriceLabel = document.getElementById('home-price-label'); 
+	const downPaymentContainer = document.getElementById('down-payment-container'); 
+	const downPaymentWarningEl = document.getElementById('down-payment-warning'); 
+	const creditScoreWarningEl = document.getElementById('credit-score-warning'); 
+	const fhaSuggestionWarningEl = document.getElementById('fha-suggestion-warning'); 
+	const loanBreakdownDisplay = document.getElementById('loan-breakdown-display'); 
+	const hoaWarningEl = document.getElementById('hoa-warning'); 
+	const ltvContainer = document.getElementById('ltv-container'); 
+
+	// Toggles 
+	const btnPurchase = document.getElementById('btn-purchase'); 
+	const btnRefinance = document.getElementById('btn-refinance'); 
+	const btnConventional = document.getElementById('btn-conventional'); 
+	const btnFha = document.getElementById('btn-fha'); 
+	const btnVa = document.getElementById('btn-va'); 
+	const propTypeSfhBtn = document.getElementById('prop-type-sfh'); 
+	const propTypeTownhomeBtn = document.getElementById('prop-type-townhome'); 
+	const propTypeCondoBtn = document.getElementById('prop-type-condo'); 
+
+	// FHA Section 
+	const fhaOptionsContainer = document.getElementById('fha-options-container'); 
+	const fhaFinanceUfmipBtn = document.getElementById('fha-finance-ufmip'); 
+	const fhaPayCashUfmipBtn = document.getElementById('fha-pay-cash-ufmip'); 
+
+	// VA Section 
+	const vaContainer = document.getElementById('va-funding-fee-container'); 
+	const vaOptionsContainer = document.getElementById('va-options-container'); 
+	const vaExemptYesBtn = document.getElementById('va-exempt-yes'); 
+	const vaExemptNoBtn = document.getElementById('va-exempt-no'); 
+	const vaFirstUseBtn = document.getElementById('va-first-use'); 
+	const vaSubsequentUseBtn = document.getElementById('va-subsequent-use'); 
+	const vaFinanceFeeBtn = document.getElementById('va-finance-fee'); 
+	const vaPayCashBtn = document.getElementById('va-pay-cash'); 
+
+	// Results 
+	const monthlyPaymentEl = document.getElementById('monthly-payment'); 
+	const totalInterestDisplay = document.getElementById('total-interest-display'); 
+	const amortizationTableBody = document.getElementById('amortization-table').querySelector('tbody'); 
+	const svgChart = document.getElementById('custom-chart'); 
+	
+	// Scenarios 
+	const saveScenarioBtn = document.getElementById('save-scenario-btn'); 
+	const clearScenariosBtn = document.getElementById('clear-scenarios-btn'); 
+	const resetFieldsBtn = document.getElementById('reset-fields-btn'); 
+	const scenarioComparisonContainer = document.getElementById('scenario-comparison-container'); 
+	const scenarioTableBody = document.getElementById('scenario-table-body'); 
+	
+	// --- Settings Panel & Feature Elements --- 
+	const settingsBtn = document.getElementById('settings-btn'); 
+	const settingsPanel = document.getElementById('settings-panel'); 
+	const toggleClosingCosts = document.getElementById('toggle-closing-costs'); 
+	const toggleExtraPayments = document.getElementById('toggle-extra-payments'); 
+	const toggleAmortization = document.getElementById('toggle-amortization'); 
+	
+	const affordableHomePriceEl = document.getElementById('affordable-home-price'); 
+	const closingCostsContainer = document.getElementById('closing-costs-container'); 
+	const extraPaymentsContainer = document.getElementById('extra-payments-container'); 
+	const amortizationContainer = document.getElementById('amortization-container'); 
+	
+	const maxPurchasePriceInputs = [ 
+		document.getElementById('monthly-income'), 
+		document.getElementById('monthly-debts'), 
+		document.getElementById('afford-down-payment'), 
+		document.getElementById('afford-dti') 
+	]; 
+
+	const extraPaymentInputs = [ 
+		document.getElementById('extra-monthly-payment'), 
+		document.getElementById('extra-yearly-payment'), 
+		document.getElementById('one-time-payment') 
+	]; 
+	const extraPaymentResultsEl = document.getElementById('extra-payment-results'); 
+	const closingCostsContentEl = document.getElementById('closing-costs-content'); 
+	const printSummaryBtn = document.getElementById('print-summary-btn'); 
+
+	// --- State Variables --- 
+	let state = { 
+		transactionType: 'purchase', 
+		loanType: 'conventional', 
+		propertyType: 'sfh', 
+		fhaFinanceUfmip: true, 
+		vaExempt: false, 
+		vaUseType: 'first_use', 
+		vaFinanceFee: true, 
+		lastFocused: null, 
+		savedScenarios: [], 
+		currentScenarioData: {}, 
+		showClosingCosts: true, 
+		showExtraPayments: true, 
+		showAmortization: true, 
+		// State for tracking last calculated values 
+		lastCalculatedInterest: null, 
+		lastCalculatedTax: null, 
+		lastCalculatedInsurance: null, 
+		lastCalculatedMI: null,
+		lastCalculatedMIRatePercent: null,
+		editingInterestRate: false,
+		editingPropertyTax: false,
+		editingHomeInsurance: false,
+		editingMI: false,
+		// Track whether user has overridden auto-calculated optional fields
+		overrides: {
+			propertyTax: false,
+			homeInsurance: false,
+			mi: false
+		}
+	}; 
+
+	// Create elements object for easier passing to functions
+	const elements = {
+		// Inputs
+		homePriceInput, downPaymentDollarInput, downPaymentPercentInput, loanAmountInput, 
+		loanTermInput, creditScoreInput, hoaInput, ltvPercentInput, interestRateInput,
+		propertyTaxMonthlyInput, propertyTaxYearlyInput, homeInsuranceMonthlyInput, 
+		homeInsuranceYearlyInput, miMonthlyInput, miPercentInput,
+		
+		// Display elements
+		interestRateEstimateEl, propertyTaxEstimateEl, homeInsuranceEstimateEl, miEstimateEl,
+		homePriceLabel, downPaymentContainer, downPaymentWarningEl, creditScoreWarningEl,
+		fhaSuggestionWarningEl, loanBreakdownDisplay, hoaWarningEl, ltvContainer,
+		
+		// Results
+		monthlyPaymentEl, totalInterestDisplay, amortizationTableBody, svgChart,
+		
+		// Features
+		closingCostsContentEl, extraPaymentResultsEl, affordableHomePriceEl,
+		scenarioComparisonContainer, scenarioTableBody, saveScenarioBtn, clearScenariosBtn,
+		
+		// Max purchase price inputs
+		monthlyIncomeInput: maxPurchasePriceInputs[0],
+		monthlyDebtsInput: maxPurchasePriceInputs[1],
+		affordDownPaymentInput: maxPurchasePriceInputs[2],
+		affordDtiInput: maxPurchasePriceInputs[3],
+		
+		// Extra payment inputs
+		extraMonthlyPaymentInput: extraPaymentInputs[0],
+		extraYearlyPaymentInput: extraPaymentInputs[1],
+		oneTimePaymentInput: extraPaymentInputs[2],
+		
+		// Containers
+		closingCostsContainer, extraPaymentsContainer, amortizationContainer,
+		fhaOptionsContainer, vaContainer, vaOptionsContainer
+	};
+
+	// --- Event Listeners --- 
+	allInputs.forEach(input => { 
+		const isToggleButton = input.tagName === 'BUTTON' && (input.parentElement.classList.contains('p-1') || input.parentElement.classList.contains('p-0.5')); 
+		if (isToggleButton) return; 
+		input.addEventListener('input', () => {
+			const data = calculateAll(state, elements);
+			updateUI(data, state, elements);
+			
+			// Update warnings
+			downPaymentWarningEl.textContent = data.dpWarningMsg; 
+			downPaymentWarningEl.classList.toggle('hidden', !data.dpWarningMsg); 
+			fhaSuggestionWarningEl.textContent = data.fhaSuggestionMsg; 
+			fhaSuggestionWarningEl.classList.toggle('hidden', !data.fhaSuggestionMsg); 
+			hoaWarningEl.textContent = `A ${state.propertyType} most likely has an HOA fee.`; 
+			hoaWarningEl.classList.toggle('hidden', !data.showHoaWarning); 
+			creditScoreWarningEl.textContent = data.estimatedInterestRateWarning; 
+			creditScoreWarningEl.classList.toggle('hidden', !data.estimatedInterestRateWarning);
+			
+			// Store current scenario data
+			state.currentScenarioData = { 
+				loanType: state.loanType.toUpperCase(), 
+				homePrice: data.homePrice, 
+				downPayment: state.transactionType === 'purchase' ? (data.homePrice - data.baseLoanAmount) : 'N/A', 
+				loanAmount: data.baseLoanAmount, 
+				financedFee: data.financedFee, 
+				totalLoanAmount: data.finalLoanAmount, 
+				interestRate: data.interestRate, 
+				term: parseInt(loanTermInput.value) || 0, 
+				monthlyPayment: data.totalMonthlyPayment, 
+				pAndI: data.monthlyPI, 
+				tax: data.monthlyTax, 
+				insurance: data.monthlyInsurance, 
+				mi: data.monthlyMI, 
+				hoa: data.monthlyHOA, 
+				totalInterest: data.totalInterestPaid, 
+				amortizationData: data.amortizationData 
+			};
+			
+			// Trigger feature calculations 
+			if (state.showClosingCosts) calculateClosingCosts(data, state, elements); 
+			if (state.showExtraPayments) calculateExtraPayments(state, elements); 
+		}); 
+		input.addEventListener('change', () => {
+			const data = calculateAll(state, elements);
+			updateUI(data, state, elements);
+			
+			// Update warnings
+			downPaymentWarningEl.textContent = data.dpWarningMsg; 
+			downPaymentWarningEl.classList.toggle('hidden', !data.dpWarningMsg); 
+			fhaSuggestionWarningEl.textContent = data.fhaSuggestionMsg; 
+			fhaSuggestionWarningEl.classList.toggle('hidden', !data.fhaSuggestionMsg); 
+			hoaWarningEl.textContent = `A ${state.propertyType} most likely has an HOA fee.`; 
+			hoaWarningEl.classList.toggle('hidden', !data.showHoaWarning); 
+			creditScoreWarningEl.textContent = data.estimatedInterestRateWarning; 
+			creditScoreWarningEl.classList.toggle('hidden', !data.estimatedInterestRateWarning);
+			
+			// Store current scenario data
+			state.currentScenarioData = { 
+				loanType: state.loanType.toUpperCase(), 
+				homePrice: data.homePrice, 
+				downPayment: state.transactionType === 'purchase' ? (data.homePrice - data.baseLoanAmount) : 'N/A', 
+				loanAmount: data.baseLoanAmount, 
+				financedFee: data.financedFee, 
+				totalLoanAmount: data.finalLoanAmount, 
+				interestRate: data.interestRate, 
+				term: parseInt(loanTermInput.value) || 0, 
+				monthlyPayment: data.totalMonthlyPayment, 
+				pAndI: data.monthlyPI, 
+				tax: data.monthlyTax, 
+				insurance: data.monthlyInsurance, 
+				mi: data.monthlyMI, 
+				hoa: data.monthlyHOA, 
+				totalInterest: data.totalInterestPaid, 
+				amortizationData: data.amortizationData 
+			};
+			
+			// Trigger feature calculations 
+			if (state.showClosingCosts) calculateClosingCosts(data, state, elements); 
+			if (state.showExtraPayments) calculateExtraPayments(state, elements); 
+		}); 
+	}); 
+	
+	document.getElementById('mortgage-form').addEventListener('focusin', (e) => { 
+		if (e.target.tagName === 'INPUT') state.lastFocused = e.target; 
+		if (e.target === interestRateInput) state.editingInterestRate = true;
+	}); 
+
+	// Dynamic field listeners and editing flags
+	// Focus handlers to mark editing state
+	propertyTaxMonthlyInput.addEventListener('focus', () => { state.editingPropertyTax = true; });
+	propertyTaxYearlyInput.addEventListener('focus', () => { state.editingPropertyTax = true; });
+	homeInsuranceMonthlyInput.addEventListener('focus', () => { state.editingHomeInsurance = true; });
+	homeInsuranceYearlyInput.addEventListener('focus', () => { state.editingHomeInsurance = true; });
+	miMonthlyInput.addEventListener('focus', () => { state.editingMI = true; });
+	miPercentInput.addEventListener('focus', () => { state.editingMI = true; });
+
+	propertyTaxMonthlyInput.addEventListener('input', () => {
+		const val = propertyTaxMonthlyInput.value;
+		if (val === '') {
+			propertyTaxYearlyInput.value = '';
+		} else {
+			const monthly = parseFloat(val) || 0;
+			propertyTaxYearlyInput.value = (monthly * 12).toFixed(2);
+		}
+		state.overrides.propertyTax = true;
+	});
+	propertyTaxYearlyInput.addEventListener('input', () => {
+		const val = propertyTaxYearlyInput.value;
+		if (val === '') {
+			propertyTaxMonthlyInput.value = '';
+		} else {
+			const yearly = parseFloat(val) || 0;
+			propertyTaxMonthlyInput.value = (yearly / 12).toFixed(2);
+		}
+		state.overrides.propertyTax = true;
+	});
+	homeInsuranceMonthlyInput.addEventListener('input', () => {
+		const val = homeInsuranceMonthlyInput.value;
+		if (val === '') {
+			homeInsuranceYearlyInput.value = '';
+		} else {
+			const monthly = parseFloat(val) || 0;
+			homeInsuranceYearlyInput.value = (monthly * 12).toFixed(2);
+		}
+		state.overrides.homeInsurance = true;
+	});
+	homeInsuranceYearlyInput.addEventListener('input', () => {
+		const val = homeInsuranceYearlyInput.value;
+		if (val === '') {
+			homeInsuranceMonthlyInput.value = '';
+		} else {
+			const yearly = parseFloat(val) || 0;
+			homeInsuranceMonthlyInput.value = (yearly / 12).toFixed(2);
+		}
+		state.overrides.homeInsurance = true;
+	});
+	miMonthlyInput.addEventListener('input', () => {
+		const val = miMonthlyInput.value;
+		const loanAmount = parseFloat(loanAmountInput.value) || 0;
+		if (val === '') {
+			miPercentInput.value = '';
+		} else if (loanAmount > 0) {
+			const monthly = parseFloat(val) || 0;
+			miPercentInput.value = ((monthly * 12 / loanAmount) * 100).toFixed(2);
+		}
+		state.overrides.mi = true;
+	});
+	miPercentInput.addEventListener('input', () => {
+		const val = miPercentInput.value;
+		const loanAmount = parseFloat(loanAmountInput.value) || 0;
+		if (val === '') {
+			miMonthlyInput.value = '';
+		} else {
+			const percent = parseFloat(val) || 0;
+			miMonthlyInput.value = ((loanAmount * (percent / 100)) / 12).toFixed(2);
+		}
+		state.overrides.mi = true;
+	});
+
+	// Blur: if both fields empty, restore calculated; else keep override
+	propertyTaxMonthlyInput.addEventListener('blur', () => {
+		state.editingPropertyTax = false;
+		if (propertyTaxMonthlyInput.value === '' && propertyTaxYearlyInput.value === '') {
+			if (state.lastCalculatedTax != null) {
+				propertyTaxMonthlyInput.value = state.lastCalculatedTax.toFixed(2);
+				propertyTaxYearlyInput.value = (state.lastCalculatedTax * 12).toFixed(2);
+			}
+			state.overrides.propertyTax = false;
+		}
+	});
+	propertyTaxYearlyInput.addEventListener('blur', () => {
+		state.editingPropertyTax = false;
+		if (propertyTaxMonthlyInput.value === '' && propertyTaxYearlyInput.value === '') {
+			if (state.lastCalculatedTax != null) {
+				propertyTaxMonthlyInput.value = state.lastCalculatedTax.toFixed(2);
+				propertyTaxYearlyInput.value = (state.lastCalculatedTax * 12).toFixed(2);
+			}
+			state.overrides.propertyTax = false;
+		}
+	});
+	homeInsuranceMonthlyInput.addEventListener('blur', () => {
+		state.editingHomeInsurance = false;
+		if (homeInsuranceMonthlyInput.value === '' && homeInsuranceYearlyInput.value === '') {
+			if (state.lastCalculatedInsurance != null) {
+				homeInsuranceMonthlyInput.value = state.lastCalculatedInsurance.toFixed(2);
+				homeInsuranceYearlyInput.value = (state.lastCalculatedInsurance * 12).toFixed(2);
+			}
+			state.overrides.homeInsurance = false;
+		}
+	});
+	homeInsuranceYearlyInput.addEventListener('blur', () => {
+		state.editingHomeInsurance = false;
+		if (homeInsuranceMonthlyInput.value === '' && homeInsuranceYearlyInput.value === '') {
+			if (state.lastCalculatedInsurance != null) {
+				homeInsuranceMonthlyInput.value = state.lastCalculatedInsurance.toFixed(2);
+				homeInsuranceYearlyInput.value = (state.lastCalculatedInsurance * 12).toFixed(2);
+			}
+			state.overrides.homeInsurance = false;
+		}
+	});
+	miMonthlyInput.addEventListener('blur', () => {
+		state.editingMI = false;
+		if (miMonthlyInput.value === '' && miPercentInput.value === '') {
+			if (state.lastCalculatedMI != null) {
+				miMonthlyInput.value = state.lastCalculatedMI.toFixed(2);
+			}
+			if (state.lastCalculatedMIRatePercent != null) {
+				miPercentInput.value = state.lastCalculatedMIRatePercent.toFixed(2);
+			}
+			state.overrides.mi = false;
+		}
+	});
+	miPercentInput.addEventListener('blur', () => {
+		state.editingMI = false;
+		if (miMonthlyInput.value === '' && miPercentInput.value === '') {
+			if (state.lastCalculatedMI != null) {
+				miMonthlyInput.value = state.lastCalculatedMI.toFixed(2);
+			}
+			if (state.lastCalculatedMIRatePercent != null) {
+				miPercentInput.value = state.lastCalculatedMIRatePercent.toFixed(2);
+			}
+			state.overrides.mi = false;
+		}
+	});
+	
+	// Top Level Toggles 
+	btnPurchase.addEventListener('click', () => { 
+		state.transactionType = 'purchase'; 
+		handleToggle(btnPurchase, btnRefinance); 
+		updateDynamicSections(state, elements); 
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+	btnRefinance.addEventListener('click', () => { 
+		state.transactionType = 'refinance'; 
+		handleToggle(btnRefinance, btnPurchase); 
+		updateDynamicSections(state, elements); 
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+	btnConventional.addEventListener('click', () => { 
+		state.loanType = 'conventional'; 
+		handleToggle(btnConventional, [btnFha, btnVa]); 
+		updateDynamicSections(state, elements); 
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+	btnFha.addEventListener('click', () => { 
+		state.loanType = 'fha'; 
+		handleToggle(btnFha, [btnConventional, btnVa]); 
+		updateDynamicSections(state, elements); 
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+	btnVa.addEventListener('click', () => { 
+		state.loanType = 'va'; 
+		handleToggle(btnVa, [btnConventional, btnFha]); 
+		updateDynamicSections(state, elements); 
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+	
+	// Sub-Toggles 
+	propTypeSfhBtn.addEventListener('click', () => { 
+		state.propertyType = 'sfh'; 
+		handleToggle(propTypeSfhBtn, [propTypeTownhomeBtn, propTypeCondoBtn]); 
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+	propTypeTownhomeBtn.addEventListener('click', () => { 
+		state.propertyType = 'townhome'; 
+		handleToggle(propTypeTownhomeBtn, [propTypeSfhBtn, propTypeCondoBtn]); 
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+	propTypeCondoBtn.addEventListener('click', () => { 
+		state.propertyType = 'condo'; 
+		handleToggle(propTypeCondoBtn, [propTypeSfhBtn, propTypeTownhomeBtn]); 
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+
+	// FHA Toggles 
+	fhaFinanceUfmipBtn.addEventListener('click', () => { 
+		state.fhaFinanceUfmip = true; 
+		handleToggle(fhaFinanceUfmipBtn, fhaPayCashUfmipBtn); 
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+	fhaPayCashUfmipBtn.addEventListener('click', () => { 
+		state.fhaFinanceUfmip = false; 
+		handleToggle(fhaPayCashUfmipBtn, fhaFinanceUfmipBtn); 
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+
+	// VA Toggles 
+	vaExemptNoBtn.addEventListener('click', () => { 
+		state.vaExempt = false; 
+		handleToggle(vaExemptNoBtn, vaExemptYesBtn); 
+		updateDynamicSections(state, elements); 
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+	vaExemptYesBtn.addEventListener('click', () => { 
+		state.vaExempt = true; 
+		handleToggle(vaExemptYesBtn, vaExemptNoBtn); 
+		updateDynamicSections(state, elements); 
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+	vaFirstUseBtn.addEventListener('click', () => { 
+		state.vaUseType = 'first_use'; 
+		handleToggle(vaFirstUseBtn, vaSubsequentUseBtn); 
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+	vaSubsequentUseBtn.addEventListener('click', () => { 
+		state.vaUseType = 'subsequent_use'; 
+		handleToggle(vaSubsequentUseBtn, vaFirstUseBtn); 
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+	vaFinanceFeeBtn.addEventListener('click', () => { 
+		state.vaFinanceFee = true; 
+		handleToggle(vaFinanceFeeBtn, vaPayCashBtn); 
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+	vaPayCashBtn.addEventListener('click', () => { 
+		state.vaFinanceFee = false; 
+		handleToggle(vaPayCashBtn, vaFinanceFeeBtn); 
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+	
+	resetFieldsBtn.addEventListener('click', () => {
+		interestRateInput.value = ''; 
+		propertyTaxMonthlyInput.value = ''; 
+		propertyTaxYearlyInput.value = ''; 
+		homeInsuranceMonthlyInput.value = ''; 
+		homeInsuranceYearlyInput.value = ''; 
+		miMonthlyInput.value = ''; 
+		miPercentInput.value = '';
+		// Clear overrides so fields auto-update again
+		state.editingInterestRate = false;
+		state.editingPropertyTax = false;
+		state.editingHomeInsurance = false;
+		state.editingMI = false;
+		state.overrides.propertyTax = false;
+		state.overrides.homeInsurance = false;
+		state.overrides.mi = false;
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+	}); 
+
+	// When leaving the interest rate field: format or restore
+	interestRateInput.addEventListener('blur', () => {
+		state.editingInterestRate = false;
+		if (interestRateInput.value === '') {
+			const data = calculateAll(state, elements);
+			updateUI(data, state, elements);
+		} else {
+			const val = parseFloat(interestRateInput.value);
+			if (!isNaN(val)) interestRateInput.value = val.toFixed(3);
+		}
+	});
+	
+	// --- Settings and Feature Listeners --- 
+	settingsBtn.addEventListener('click', (e) => { 
+		e.stopPropagation(); 
+		settingsPanel.classList.toggle('opacity-0'); 
+		settingsPanel.classList.toggle('scale-95'); 
+		settingsPanel.classList.toggle('pointer-events-none'); 
+	}); 
+
+	document.addEventListener('click', (e) => { 
+		if (!settingsPanel.contains(e.target) && !settingsBtn.contains(e.target)) { 
+			settingsPanel.classList.add('opacity-0', 'scale-95', 'pointer-events-none'); 
+		} 
+	}); 
+
+	toggleClosingCosts.addEventListener('change', () => { 
+		state.showClosingCosts = toggleClosingCosts.checked; 
+		closingCostsContainer.classList.toggle('hidden', !state.showClosingCosts); 
+	}); 
+
+	toggleExtraPayments.addEventListener('change', () => { 
+		state.showExtraPayments = toggleExtraPayments.checked; 
+		extraPaymentsContainer.classList.toggle('hidden', !state.showExtraPayments); 
+	}); 
+
+	toggleAmortization.addEventListener('change', () => { 
+		state.showAmortization = toggleAmortization.checked; 
+		amortizationContainer.classList.toggle('hidden', !state.showAmortization); 
+	}); 
+
+	maxPurchasePriceInputs.forEach(input => input.addEventListener('input', () => calculateMaxPurchasePrice(state, elements))); 
+	extraPaymentInputs.forEach(input => input.addEventListener('input', () => calculateExtraPayments(state, elements))); 
+
+	// --- Scenarios ---
+	saveScenarioBtn.addEventListener('click', () => { 
+		if (state.savedScenarios.length < 3) { 
+			state.savedScenarios.push(state.currentScenarioData); 
+			renderScenarioTable(state, elements); 
+		} 
+		if (state.savedScenarios.length >= 3) { 
+			saveScenarioBtn.disabled = true; 
+			saveScenarioBtn.classList.add('opacity-50', 'cursor-not-allowed'); 
+		} 
+	}); 
+
+	clearScenariosBtn.addEventListener('click', () => clearAllScenarios(state, elements)); 
+	
+	scenarioTableBody.addEventListener('click', function(e) { 
+		if (e.target && e.target.classList.contains('delete-scenario-btn')) { 
+			const indexToDelete = parseInt(e.target.dataset.index, 10); 
+			state.savedScenarios.splice(indexToDelete, 1); 
+			if (state.savedScenarios.length === 0) { 
+				clearAllScenarios(state, elements); 
+			} else { 
+				renderScenarioTable(state, elements); 
+			} 
+			saveScenarioBtn.disabled = false; 
+			saveScenarioBtn.classList.remove('opacity-50', 'cursor-not-allowed'); 
+		} 
+	}); 
+	
+	printSummaryBtn.addEventListener('click', () => { 
+		const { jsPDF } = window.jspdf; 
+		const pdf = new jsPDF({ 
+			orientation: 'p', 
+			unit: 'px', 
+			format: 'a4' 
+		}); 
+
+		const contentToPrint = document.querySelector('.container'); 
+		html2canvas(contentToPrint, { 
+			scale: 2, 
+			backgroundColor: '#111827' // bg-gray-900 
+		}).then(canvas => { 
+			const imgData = canvas.toDataURL('image/png'); 
+			const imgProps = pdf.getImageProperties(imgData); 
+			const pdfWidth = pdf.internal.pageSize.getWidth(); 
+			const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width; 
+			pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight); 
+			pdf.save('mortgage-summary.pdf'); 
+		}); 
+	}); 
+	
+	const initializeFeatureVisibility = () => { 
+		closingCostsContainer.classList.toggle('hidden', !state.showClosingCosts); 
+		extraPaymentsContainer.classList.toggle('hidden', !state.showExtraPayments); 
+		amortizationContainer.classList.toggle('hidden', !state.showAmortization); 
+	} 
+
+	// --- Initial Setup --- 
+	initializeFeatureVisibility(); 
+	updateDynamicSections(state, elements); 
+	calculateMaxPurchasePrice(state, elements);
+	
+	// Initial calculation
+	const data = calculateAll(state, elements);
+	updateUI(data, state, elements);
+}); 

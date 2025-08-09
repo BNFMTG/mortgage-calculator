@@ -1,0 +1,439 @@
+<!DOCTYPE html> 
+<html lang="en"> 
+<head> 
+	<meta charset="UTF-8"> 
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+	<title>Beneficial Mortgage, LLC | Advanced Mortgage Calculator</title> 
+	
+	<!-- Tailwind CSS --> 
+	<script src="https://cdn.tailwindcss.com"></script> 
+	
+	<!-- Google Fonts: Inter --> 
+	<link rel="preconnect" href="https://fonts.googleapis.com"> 
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> 
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"> 
+	
+	<!-- jsPDF and html2canvas for printing --> 
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script> 
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script> 
+
+	<!-- Custom Styles -->
+	<link rel="stylesheet" href="css/styles.css">
+</head> 
+<body class="bg-gray-900 text-gray-200"> 
+
+	<div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-5xl"> 
+		
+		<!-- Header --> 
+		<header class="text-center mb-8 relative"> 
+			<h1 class="text-3xl sm:text-4xl font-bold text-white">Advanced Mortgage Calculator</h1> 
+			<p class="text-lg text-gray-400 mt-2">From your partners at <span class="font-semibold text-blue-400">Beneficial Mortgage, LLC</span></p> 
+			<button id="settings-btn" class="absolute top-0 right-0 p-2 text-gray-400 hover:text-white transition-colors"> 
+				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg> 
+			</button> 
+		</header> 
+
+		<!-- Settings Panel --> 
+		<div id="settings-panel" class="fixed top-24 right-8 bg-gray-700 p-4 rounded-lg shadow-xl z-50 opacity-0 transform scale-95 pointer-events-none"> 
+			<h4 class="font-bold mb-3 text-white">Features</h4> 
+			<div class="space-y-3"> 
+				<div class="flex items-center justify-between"> 
+					<label for="toggle-closing-costs" class="text-sm text-gray-300 mr-4">Closing Cost Estimator</label> 
+					<label class="switch"><input type="checkbox" id="toggle-closing-costs" checked><span class="slider"></span></label> 
+				</div> 
+				<div class="flex items-center justify-between"> 
+					<label for="toggle-extra-payments" class="text-sm text-gray-300 mr-4">Extra Payment Calculator</label> 
+					<label class="switch"><input type="checkbox" id="toggle-extra-payments" checked><span class="slider"></span></label> 
+				</div> 
+				 <div class="flex items-center justify-between"> 
+					<label for="toggle-amortization" class="text-sm text-gray-300 mr-4">Amortization Schedule</label> 
+					<label class="switch"><input type="checkbox" id="toggle-amortization" checked><span class="slider"></span></label> 
+				</div> 
+			</div> 
+		</div> 
+
+		<div class="grid grid-cols-1 lg:grid-cols-5 gap-8"> 
+			
+			<!-- Left Side: Input Form --> 
+			<div class="lg:col-span-3 bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl shadow-blue-900/10"> 
+				<!-- Payment Calculator View --> 
+				<div id="payment-calculator-view"> 
+					<form id="mortgage-form" onsubmit="return false;"> 
+						<!-- Top Level Toggles --> 
+						<div class="grid grid-cols-2 gap-4 mb-6"> 
+							<div> 
+								<label class="block text-sm font-medium text-gray-300 mb-2 text-center">Transaction Type</label> 
+								<div class="flex justify-center bg-gray-700 p-1 rounded-lg"> 
+									<button type="button" id="btn-purchase" class="w-1/2 py-2 text-sm font-medium rounded-md toggle-btn-active">Purchase</button> 
+									<button type="button" id="btn-refinance" class="w-1/2 py-2 text-sm font-medium rounded-md toggle-btn-inactive">Refinance</button> 
+								</div> 
+							</div> 
+							<div> 
+								<label class="block text-sm font-medium text-gray-300 mb-2 text-center">Loan Type</label> 
+								<div class="flex justify-center bg-gray-700 p-1 rounded-lg"> 
+									<button type="button" id="btn-conventional" class="w-1/3 py-2 text-sm font-medium rounded-md toggle-btn-active">Conv.</button> 
+									<button type="button" id="btn-fha" class="w-1/3 py-2 text-sm font-medium rounded-md toggle-btn-inactive">FHA</button> 
+									<button type="button" id="btn-va" class="w-1/3 py-2 text-sm font-medium rounded-md toggle-btn-inactive">VA</button> 
+								</div> 
+							</div> 
+						</div> 
+
+						<div class="space-y-6"> 
+							<!-- Loan Details Section --> 
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-6"> 
+								<div> 
+									<label for="home-price" id="home-price-label" class="block text-sm font-medium text-gray-300 mb-1">Home Price</label> 
+									<div class="relative"> 
+										<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span class="text-gray-400 sm:text-sm">$</span></div> 
+										<input type="number" id="home-price" value="450000" class="w-full pl-7 pr-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring"> 
+									</div> 
+								</div> 
+								 <div> 
+									<label for="loan-amount" class="block text-sm font-medium text-gray-300 mb-1">Base Loan Amount</label> 
+									<div class="relative"> 
+										<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span class="text-gray-400 sm:text-sm">$</span></div> 
+										<input type="number" id="loan-amount" class="w-full pl-7 pr-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring"> 
+									</div> 
+								</div> 
+							</div> 
+							<div id="loan-breakdown-display" class="text-xs text-center text-blue-300 bg-blue-900/20 py-2 rounded-md hidden"></div> 
+							
+							<!-- LTV Container (Refinance Only) --> 
+							<div id="ltv-container" class="hidden"> 
+								 <label for="ltv-percent" class="block text-sm font-medium text-gray-300 mb-1">LTV (%)</label> 
+								 <div class="relative"> 
+									 <input type="number" id="ltv-percent" step="0.01" class="w-full pr-8 pl-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring"> 
+									 <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"><span class="text-gray-400 sm:text-sm">%</span></div> 
+								 </div> 
+							</div> 
+
+							<!-- Down Payment Container --> 
+							<div id="down-payment-container" class="space-y-4"> 
+								<div class="grid grid-cols-1 sm:grid-cols-2 gap-6"> 
+									<div> 
+										<label for="down-payment-dollar" class="block text-sm font-medium text-gray-300 mb-1">Down Payment ($)</label> 
+										<div class="relative"> 
+											<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span class="text-gray-400 sm:text-sm">$</span></div> 
+											<input type="number" id="down-payment-dollar" value="22500" class="w-full pl-7 pr-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring"> 
+										</div> 
+									</div> 
+									<div> 
+										<label for="down-payment-percent" class="block text-sm font-medium text-gray-300 mb-1">Down Payment (%)</label> 
+										<div class="relative"> 
+											<input type="number" id="down-payment-percent" value="5" step="0.01" class="w-full pr-8 pl-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring"> 
+											<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"><span class="text-gray-400 sm:text-sm">%</span></div> 
+										</div> 
+									</div> 
+								</div> 
+								<div id="down-payment-warning" class="text-yellow-500 text-xs hidden"></div> 
+								<div id="fha-suggestion-warning" class="text-red-500 text-xs hidden"></div> 
+							</div> 
+
+							<!-- Loan & Property Details --> 
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-6"> 
+								 <div> 
+									<label for="credit-score" class="block text-sm font-medium text-gray-300 mb-1">Credit Score</label> 
+									<input type="number" id="credit-score" value="760" class="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring"> 
+									<p id="credit-score-warning" class="text-red-500 text-xs mt-2 hidden"></p> 
+								</div> 
+								<div> 
+									<label for="interest-rate" class="block text-sm font-medium text-gray-300 mb-1">Interest Rate (%)</label> 
+									<div class="relative"> 
+										<input type="number" id="interest-rate" step="0.001" class="w-full pr-8 pl-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring"> 
+										<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"><span class="text-gray-400 sm:text-sm">%</span></div> 
+									</div> 
+									<p id="interest-rate-estimate" class="text-xs text-gray-400 mt-1">Est: 0.000%</p> 
+								</div> 
+								<div> 
+									<label for="loan-term" class="block text-sm font-medium text-gray-300 mb-1">Loan Term (Years)</label> 
+									<input type="number" id="loan-term" value="30" class="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring"> 
+								</div> 
+								<div> 
+									<label class="block text-sm font-medium text-gray-300 mb-1">Property Type</label> 
+									<div class="flex rounded-lg bg-gray-700 p-1 items-center"> 
+										<button type="button" id="prop-type-sfh" class="w-1/3 py-1.5 text-sm font-medium rounded-md toggle-btn-active">SFH</button> 
+										<button type="button" id="prop-type-townhome" class="w-1/3 py-1.5 text-sm font-medium rounded-md toggle-btn-inactive">Townhome</button> 
+										<button type="button" id="prop-type-condo" class="w-1/3 py-1.5 text-sm font-medium rounded-md toggle-btn-inactive">Condo</button> 
+									</div> 
+								</div> 
+							</div> 
+							
+							<!-- FHA Options Section --> 
+							<div id="fha-options-container" class="space-y-4 collapsible"> 
+								<h3 class="text-md font-semibold text-gray-100 border-t border-gray-700 pt-6">FHA Upfront MIP</h3> 
+								<div class="flex items-center justify-center bg-gray-700/50 p-3 rounded-lg"> 
+									<label class="text-sm font-medium text-gray-300 mr-4">UFMIP Payment</label> 
+									<div class="flex rounded-lg bg-gray-700 p-0.5"> 
+										<button type="button" id="fha-finance-ufmip" class="px-4 py-1 text-xs font-medium rounded-md toggle-btn-active">Finance</button> 
+										<button type="button" id="fha-pay-cash-ufmip" class="px-4 py-1 text-xs font-medium rounded-md toggle-btn-inactive">Pay Cash</button> 
+									</div> 
+								</div> 
+							</div> 
+
+							<!-- VA Funding Fee Section --> 
+							<div id="va-funding-fee-container" class="space-y-4 collapsible"> 
+								<h3 class="text-md font-semibold text-gray-100 border-t border-gray-700 pt-6">VA Funding Fee</h3> 
+								<div class="flex items-center space-x-4 bg-gray-700/50 p-3 rounded-lg"> 
+									<label for="va-exempt" class="text-sm font-medium text-gray-300">Exempt from Fee?</label> 
+									<div class="flex rounded-lg bg-gray-700 p-0.5"> 
+										<button type="button" id="va-exempt-no" class="px-4 py-1 text-xs font-medium rounded-md toggle-btn-active">No</button> 
+										<button type="button" id="va-exempt-yes" class="px-4 py-1 text-xs font-medium rounded-md toggle-btn-inactive">Yes</button> 
+									</div> 
+								</div> 
+								<div id="va-options-container" class="space-y-4 collapsible open"> 
+									<div class="grid grid-cols-1 sm:grid-cols-2 gap-4"> 
+										<div class="bg-gray-700/50 p-3 rounded-lg"> 
+											<label class="block text-sm font-medium text-gray-300 mb-2 text-center">Use Type</label> 
+											<div class="flex rounded-lg bg-gray-700 p-0.5"> 
+												<button type="button" id="va-first-use" class="w-1/2 py-1 text-xs font-medium rounded-md toggle-btn-active">First Use</button> 
+												<button type="button" id="va-subsequent-use" class="w-1/2 py-1 text-xs font-medium rounded-md toggle-btn-inactive">Subsequent</button> 
+											</div> 
+										</div> 
+										<div class="bg-gray-700/50 p-3 rounded-lg"> 
+											<label class="block text-sm font-medium text-gray-300 mb-2 text-center">Funding Fee</label> 
+											<div class="flex rounded-lg bg-gray-700 p-0.5"> 
+												<button type="button" id="va-finance-fee" class="w-1/2 py-1 text-xs font-medium rounded-md toggle-btn-active">Finance</button> 
+												<button type="button" id="va-pay-cash" class="w-1/2 py-1 text-xs font-medium rounded-md toggle-btn-inactive">Pay Cash</button> 
+											</div> 
+										</div> 
+									</div> 
+								</div> 
+							</div> 
+							
+							<!-- Extra Costs --> 
+							<div class="border-t border-gray-700 pt-6"> 
+                                <details open>
+                                    <summary class="text-md font-semibold text-gray-100 cursor-pointer hover:text-blue-400 transition-colors">Additional Monthly Costs</summary>
+                                    <div class="mt-4 space-y-6">
+                                        <!-- Property Tax -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-300 mb-2">Property Tax</label>
+                                            <div class="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label for="property-tax-monthly" class="text-xs text-gray-400">Monthly</label>
+                                                    <div class="relative">
+                                                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span class="text-gray-400 sm:text-sm">$</span></div>
+                                                        <input type="number" id="property-tax-monthly" class="w-full pl-7 pr-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring">
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label for="property-tax-yearly" class="text-xs text-gray-400">Yearly</label>
+                                                    <div class="relative">
+                                                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span class="text-gray-400 sm:text-sm">$</span></div>
+                                                        <input type="number" id="property-tax-yearly" class="w-full pl-7 pr-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p id="property-tax-estimate" class="text-xs text-gray-400 mt-1">Est: $0</p>
+                                        </div>
+                                        <!-- Home Insurance -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-300 mb-2">Homeowner's Insurance</label>
+                                            <div class="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label for="home-insurance-monthly" class="text-xs text-gray-400">Monthly</label>
+                                                    <div class="relative">
+                                                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span class="text-gray-400 sm:text-sm">$</span></div>
+                                                        <input type="number" id="home-insurance-monthly" class="w-full pl-7 pr-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring">
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label for="home-insurance-yearly" class="text-xs text-gray-400">Yearly</label>
+                                                    <div class="relative">
+                                                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span class="text-gray-400 sm:text-sm">$</span></div>
+                                                        <input type="number" id="home-insurance-yearly" class="w-full pl-7 pr-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p id="home-insurance-estimate" class="text-xs text-gray-400 mt-1">Est: $0</p>
+                                        </div>
+                                        <!-- Mortgage Insurance -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-300 mb-2">Mortgage Insurance (MI)</label>
+                                            <div class="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label for="mi-monthly" class="text-xs text-gray-400">Monthly</label>
+                                                    <div class="relative">
+                                                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span class="text-gray-400 sm:text-sm">$</span></div>
+                                                        <input type="number" id="mi-monthly" class="w-full pl-7 pr-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring">
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label for="mi-percent" class="text-xs text-gray-400">Percentage</label>
+                                                    <div class="relative">
+                                                        <input type="number" id="mi-percent" step="0.01" class="w-full pr-8 pl-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring">
+                                                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"><span class="text-gray-400 sm:text-sm">%</span></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p id="mi-estimate" class="text-xs text-gray-400 mt-1">Est: $0</p>
+                                        </div>
+                                        <!-- HOA Fees -->
+                                        <div>
+                                            <label for="hoa" class="block text-sm font-medium text-gray-300 mb-1">HOA Fees ($/mo)</label>
+                                            <div class="relative">
+                                                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span class="text-gray-400 sm:text-sm">$</span></div>
+                                                <input type="number" id="hoa" value="0" class="w-full pl-7 pr-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring">
+                                            </div>
+                                            <p id="hoa-warning" class="text-red-500 text-xs mt-2 hidden"></p>
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+							<div class="pt-4"> 
+								<button id="reset-fields-btn" type="button" class="w-full py-2.5 text-sm font-medium rounded-md bg-gray-600 hover:bg-gray-500 transition-colors">Reset Optional Fields</button> 
+							</div> 
+						</div> 
+					</form> 
+				</div> 
+			</div> 
+
+			<!-- Right Side: Results --> 
+			<div class="lg:col-span-2"> 
+				<div class="bg-blue-600 text-white p-6 sm:p-8 rounded-2xl shadow-lg flex flex-col justify-between text-center sticky top-8"> 
+					<!-- Payment Result View --> 
+					<div id="payment-result-view"> 
+						<h2 class="text-lg font-medium text-blue-200">Your Estimated Monthly Payment</h2> 
+						<p id="monthly-payment" class="text-4xl sm:text-5xl font-extrabold my-2">$0</p> 
+					</div> 
+
+					<!-- Custom SVG Chart Area --> 
+					<div id="svg-chart-container" class="flex-grow flex justify-center items-center w-full h-64 my-4"> 
+						<svg id="custom-chart" viewBox="-20 -20 240 240" class="w-full h-full"></svg> 
+					</div> 
+					<div id="total-interest-display" class="text-blue-200 text-sm"></div> 
+					<div class="mt-6 flex justify-center space-x-4"> 
+						<button id="save-scenario-btn" class="w-1/2 py-2.5 text-sm font-medium rounded-md bg-blue-500 hover:bg-blue-400 transition-colors">Save Scenario</button> 
+						<button id="clear-scenarios-btn" class="w-1/2 py-2.5 text-sm font-medium rounded-md bg-gray-600 hover:bg-gray-500 transition-colors hidden">Clear Scenarios</button> 
+					</div> 
+					<div class="mt-4"> 
+						 <button id="print-summary-btn" class="w-full py-2.5 text-sm font-medium rounded-md bg-blue-800 hover:bg-blue-700 transition-colors">Print Summary</button> 
+					</div> 
+				</div> 
+			</div> 
+		</div> 
+		
+		<!-- Scenario Comparison Table --> 
+		<div id="scenario-comparison-container" class="mt-8 bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl shadow-blue-900/10 hidden"> 
+			<details open> 
+				<summary class="text-xl font-bold text-white cursor-pointer hover:text-blue-400 transition-colors">Scenario Comparison</summary> 
+				<div class="overflow-x-auto mt-4"> 
+					<table id="scenario-table" class="min-w-full text-sm text-left"> 
+						<thead class="border-b border-gray-600"> 
+							<tr> 
+								<th class="py-2 px-2 font-medium text-gray-300">Metric</th> 
+								<th class="py-2 px-2 font-medium text-gray-300 text-center">Scenario 1</th> 
+								<th class="py-2 px-2 font-medium text-gray-300 text-center">Scenario 2</th> 
+								<th class="py-2 px-2 font-medium text-gray-300 text-center">Scenario 3</th> 
+							</tr> 
+						</thead> 
+						<tbody id="scenario-table-body" class="divide-y divide-gray-700"></tbody> 
+					</table> 
+				</div> 
+			</details> 
+		</div> 
+
+		<!-- Additional Feature Sections --> 
+		<div id="closing-costs-container" class="mt-8 bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl shadow-blue-900/10 hidden"> 
+			<details open> 
+				<summary class="text-xl font-bold text-white cursor-pointer hover:text-blue-400 transition-colors">Estimated Closing Costs</summary> 
+				<div id="closing-costs-content" class="mt-4"></div> 
+			</details> 
+		</div> 
+
+		<div id="extra-payments-container" class="mt-8 bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl shadow-blue-900/10 hidden"> 
+			 <details open> 
+				<summary class="text-xl font-bold text-white cursor-pointer hover:text-blue-400 transition-colors">Extra Payment Calculator</summary> 
+				<div class="mt-4 space-y-4"> 
+					<div class="grid grid-cols-1 sm:grid-cols-3 gap-4"> 
+						<div> 
+							<label for="extra-monthly-payment" class="block text-sm font-medium text-gray-300 mb-1">Extra Monthly</label> 
+							<input type="number" id="extra-monthly-payment" class="w-full p-2 bg-gray-700 rounded-lg focus-ring" placeholder="$0"> 
+						</div> 
+						<div> 
+							<label for="extra-yearly-payment" class="block text-sm font-medium text-gray-300 mb-1">Extra Yearly</label> 
+							<input type="number" id="extra-yearly-payment" class="w-full p-2 bg-gray-700 rounded-lg focus-ring" placeholder="$0"> 
+						</div> 
+						<div> 
+							<label for="one-time-payment" class="block text-sm font-medium text-gray-300 mb-1">One-Time</label> 
+							<input type="number" id="one-time-payment" class="w-full p-2 bg-gray-700 rounded-lg focus-ring" placeholder="$0"> 
+						</div> 
+					</div> 
+					<div id="extra-payment-results" class="text-center bg-gray-700/50 p-4 rounded-lg"></div> 
+				</div> 
+			</details> 
+		</div> 
+
+		<!-- Max Purchase Price Calculator --> 
+		<div id="max-purchase-price-container" class="mt-8 bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl shadow-blue-900/10"> 
+			<details open> 
+				<summary class="text-xl font-bold text-white cursor-pointer hover:text-blue-400 transition-colors">Max Purchase Price Calculator</summary> 
+				<div class="mt-4 space-y-6"> 
+					 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6"> 
+						<div> 
+							<label for="monthly-income" class="block text-sm font-medium text-gray-300 mb-1">Gross Monthly Income</label> 
+							<div class="relative"> 
+								<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span class="text-gray-400 sm:text-sm">$</span></div> 
+								<input type="number" id="monthly-income" value="8000" class="w-full pl-7 pr-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring"> 
+							</div> 
+						</div> 
+						 <div> 
+							<label for="monthly-debts" class="block text-sm font-medium text-gray-300 mb-1">Total Monthly Debts</label> 
+							<div class="relative"> 
+								<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span class="text-gray-400 sm:text-sm">$</span></div> 
+								<input type="number" id="monthly-debts" value="500" class="w-full pl-7 pr-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring"> 
+							</div> 
+						</div> 
+					</div> 
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-6"> 
+						<div> 
+							<label for="afford-down-payment" class="block text-sm font-medium text-gray-300 mb-1">Down Payment</label> 
+							<div class="relative"> 
+								<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span class="text-gray-400 sm:text-sm">$</span></div> 
+								<input type="number" id="afford-down-payment" value="25000" class="w-full pl-7 pr-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring"> 
+							</div> 
+						</div> 
+						<div> 
+							<label for="afford-dti" class="block text-sm font-medium text-gray-300 mb-1">Target DTI Ratio</label> 
+							<div class="relative"> 
+								<input type="number" id="afford-dti" value="43" class="w-full pr-8 pl-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring"> 
+								<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"><span class="text-gray-400 sm:text-sm">%</span></div> 
+							</div> 
+						</div> 
+					</div> 
+					<div id="max-purchase-price-results" class="text-center bg-blue-900/20 p-4 rounded-lg"> 
+						<h3 class="text-lg font-medium text-blue-200">You Can Afford a Home Price of</h3> 
+						<p id="affordable-home-price" class="text-3xl sm:text-4xl font-extrabold my-2">$0</p> 
+					</div> 
+				</div> 
+			</details> 
+		</div> 
+
+		<!-- Amortization Schedule --> 
+		<div id="amortization-container" class="mt-8 bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl shadow-blue-900/10 hidden"> 
+			<details> 
+				<summary class="text-xl font-bold text-white cursor-pointer hover:text-blue-400 transition-colors"> 
+					View Amortization Schedule 
+				</summary> 
+				<div class="mt-4 overflow-x-auto"> 
+					<table id="amortization-table" class="min-w-full divide-y divide-gray-700"> 
+						<thead class="bg-gray-700/50"> 
+							<tr> 
+								<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Month</th> 
+								<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Payment</th> 
+								<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Principal</th> 
+								<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Interest</th> 
+								<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Remaining Balance</th> 
+							</tr> 
+						</thead> 
+						<tbody class="bg-gray-800 divide-y divide-gray-700"></tbody> 
+					</table> 
+				</div> 
+			</details> 
+		</div> 
+	</div> 
+
+	<!-- JavaScript Modules -->
+	<script type="module" src="js/main.js"></script>
+</body> 
+</html>
