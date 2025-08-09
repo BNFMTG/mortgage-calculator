@@ -639,6 +639,30 @@ document.addEventListener('DOMContentLoaded', function () {
 	calculateMaxPurchasePrice(state, elements);
 	
 	// Initial calculation
-	const data = calculateAll(state, elements);
-	updateUI(data, state, elements);
+		const data = calculateAll(state, elements);
+		updateUI(data, state, elements);
+
+		// Seed current scenario data so Save Scenario works before any input changes
+		state.currentScenarioData = {
+			loanType: state.loanType.toUpperCase(),
+			homePrice: data.homePrice,
+			downPayment: state.transactionType === 'purchase' ? (data.homePrice - data.baseLoanAmount) : 'N/A',
+			loanAmount: data.baseLoanAmount,
+			financedFee: data.financedFee,
+			totalLoanAmount: data.finalLoanAmount,
+			interestRate: data.interestRate,
+			term: parseInt(loanTermInput.value) || 0,
+			monthlyPayment: data.totalMonthlyPayment,
+			pAndI: data.monthlyPI,
+			tax: data.monthlyTax,
+			insurance: data.monthlyInsurance,
+			mi: data.monthlyMI,
+			hoa: parseFloat(hoaInput.value) || 0,
+			totalInterest: data.totalInterestPaid,
+			amortizationData: data.amortizationData
+		};
+
+		// Populate feature sections on first load
+		if (state.showClosingCosts) calculateClosingCosts(data, state, elements);
+		if (state.showExtraPayments) calculateExtraPayments(state, elements);
 }); 
