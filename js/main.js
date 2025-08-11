@@ -1,7 +1,7 @@
 import { calculateAll } from './calculations.js';
 import { updateUI, updateDynamicSections } from './ui.js';
 import { handleToggle } from './utils.js';
-import { calculateClosingCosts } from './features/closing-costs.js';
+import { calculateClosingCosts, buildClosingCostsBreakdown } from './features/closing-costs.js';
 import { calculateExtraPayments } from './features/extra-payments.js';
 import { renderScenarioTable, clearAllScenarios } from './features/scenarios.js';
 import { calculateMaxPurchasePrice } from './features/max-purchase-price.js';
@@ -74,9 +74,9 @@ document.addEventListener('DOMContentLoaded', function () {
 	const svgChart = document.getElementById('custom-chart'); 
 	
 	// Scenarios 
-	const saveScenarioBtn = document.getElementById('save-scenario-btn'); 
-	const clearScenariosBtn = document.getElementById('clear-scenarios-btn'); 
-	const resetFieldsBtn = document.getElementById('reset-fields-btn'); 
+    const saveScenarioBtn = document.getElementById('save-scenario-btn'); 
+    const clearScenariosBtn = document.getElementById('clear-scenarios-btn'); 
+    const resetFieldsBtn = document.getElementById('reset-fields-btn'); 
 	const scenarioComparisonContainer = document.getElementById('scenario-comparison-container'); 
 	const scenarioTableBody = document.getElementById('scenario-table-body'); 
 	
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	const toggleAmortization = document.getElementById('toggle-amortization'); 
 	
 	const affordableHomePriceEl = document.getElementById('affordable-home-price'); 
-	const closingCostsContainer = document.getElementById('closing-costs-container'); 
+    const closingCostsCard = document.getElementById('closing-costs-card'); 
 	const extraPaymentsContainer = document.getElementById('extra-payments-container'); 
 	const amortizationContainer = document.getElementById('amortization-container'); 
 	
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	]; 
 	const extraPaymentResultsEl = document.getElementById('extra-payment-results'); 
 	const closingCostsContentEl = document.getElementById('closing-costs-content'); 
-	const printSummaryBtn = document.getElementById('print-summary-btn'); 
+    // Removed Print Summary
 
 	// --- State Variables --- 
 	let state = { 
@@ -173,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		oneTimePaymentInput: extraPaymentInputs[2],
 		
 		// Containers
-		closingCostsContainer, extraPaymentsContainer, amortizationContainer,
+        closingCostsCard, extraPaymentsContainer, amortizationContainer,
 		fhaOptionsContainer, vaContainer, vaOptionsContainer
 	};
 
@@ -181,8 +181,43 @@ document.addEventListener('DOMContentLoaded', function () {
 	allInputs.forEach(input => { 
 		const isToggleButton = input.tagName === 'BUTTON' && (input.parentElement.classList.contains('p-1') || input.parentElement.classList.contains('p-0.5')); 
 		if (isToggleButton) return; 
+		
+		// Special handling for interest rate to prevent down payment recalculation
+		const isInterestRateInput = input === interestRateInput;
+		
 		input.addEventListener('input', () => {
-			const data = calculateAll(state, elements);
+			let data;
+			// If this is the interest rate input, preserve current down payment and loan amount
+			if (isInterestRateInput) {
+				// Store current values before calculation
+				const currentDownPayment = parseFloat(downPaymentDollarInput.value) || 0;
+				const currentLoanAmount = parseFloat(loanAmountInput.value) || 0;
+				const currentDownPaymentPercent = parseFloat(downPaymentPercentInput.value) || 0;
+				
+				// Temporarily set lastFocused to prevent recalculation of down payment
+				const originalLastFocused = state.lastFocused;
+				state.lastFocused = null;
+				
+				data = calculateAll(state, elements);
+				
+				// Restore the original down payment and loan amount values
+				if (state.transactionType === 'purchase') {
+					downPaymentDollarInput.value = currentDownPayment.toFixed(0);
+					downPaymentPercentInput.value = currentDownPaymentPercent.toFixed(2);
+					loanAmountInput.value = currentLoanAmount.toFixed(0);
+					
+					// Update the data object to reflect the preserved values
+					data.downPayment = currentDownPayment;
+					data.baseLoanAmount = currentLoanAmount;
+					data.downPaymentPercent = currentDownPaymentPercent;
+				}
+				
+				// Restore lastFocused
+				state.lastFocused = originalLastFocused;
+			} else {
+				data = calculateAll(state, elements);
+			}
+			
 			updateUI(data, state, elements);
 			
 			// Update warnings
@@ -195,32 +230,46 @@ document.addEventListener('DOMContentLoaded', function () {
 			creditScoreWarningEl.textContent = data.estimatedInterestRateWarning; 
 			creditScoreWarningEl.classList.toggle('hidden', !data.estimatedInterestRateWarning);
 			
-			// Store current scenario data
-			state.currentScenarioData = { 
-				loanType: state.loanType.toUpperCase(), 
-				homePrice: data.homePrice, 
-				downPayment: state.transactionType === 'purchase' ? (data.homePrice - data.baseLoanAmount) : 'N/A', 
-				loanAmount: data.baseLoanAmount, 
-				financedFee: data.financedFee, 
-				totalLoanAmount: data.finalLoanAmount, 
-				interestRate: data.interestRate, 
-				term: parseInt(loanTermInput.value) || 0, 
-				monthlyPayment: data.totalMonthlyPayment, 
-				pAndI: data.monthlyPI, 
-				tax: data.monthlyTax, 
-				insurance: data.monthlyInsurance, 
-				mi: data.monthlyMI, 
-				hoa: data.monthlyHOA, 
-				totalInterest: data.totalInterestPaid, 
-				amortizationData: data.amortizationData 
-			};
+			// Store current scenario data with proper loan type and closing costs
+			updateCurrentScenarioData(data, state, elements);
 			
 			// Trigger feature calculations 
 			if (state.showClosingCosts) calculateClosingCosts(data, state, elements); 
 			if (state.showExtraPayments) calculateExtraPayments(state, elements); 
 		}); 
 		input.addEventListener('change', () => {
-			const data = calculateAll(state, elements);
+			let data;
+			// If this is the interest rate input, preserve current down payment and loan amount
+			if (isInterestRateInput) {
+				// Store current values before calculation
+				const currentDownPayment = parseFloat(downPaymentDollarInput.value) || 0;
+				const currentLoanAmount = parseFloat(loanAmountInput.value) || 0;
+				const currentDownPaymentPercent = parseFloat(downPaymentPercentInput.value) || 0;
+				
+				// Temporarily set lastFocused to prevent recalculation of down payment
+				const originalLastFocused = state.lastFocused;
+				state.lastFocused = null;
+				
+				data = calculateAll(state, elements);
+				
+				// Restore the original down payment and loan amount values
+				if (state.transactionType === 'purchase') {
+					downPaymentDollarInput.value = currentDownPayment.toFixed(0);
+					downPaymentPercentInput.value = currentDownPaymentPercent.toFixed(2);
+					loanAmountInput.value = currentLoanAmount.toFixed(0);
+					
+					// Update the data object to reflect the preserved values
+					data.downPayment = currentDownPayment;
+					data.baseLoanAmount = currentLoanAmount;
+					data.downPaymentPercent = currentDownPaymentPercent;
+				}
+				
+				// Restore lastFocused
+				state.lastFocused = originalLastFocused;
+			} else {
+				data = calculateAll(state, elements);
+			}
+			
 			updateUI(data, state, elements);
 			
 			// Update warnings
@@ -233,29 +282,12 @@ document.addEventListener('DOMContentLoaded', function () {
 			creditScoreWarningEl.textContent = data.estimatedInterestRateWarning; 
 			creditScoreWarningEl.classList.toggle('hidden', !data.estimatedInterestRateWarning);
 			
-			// Store current scenario data
-			state.currentScenarioData = { 
-				loanType: state.loanType.toUpperCase(), 
-				homePrice: data.homePrice, 
-				downPayment: state.transactionType === 'purchase' ? (data.homePrice - data.baseLoanAmount) : 'N/A', 
-				loanAmount: data.baseLoanAmount, 
-				financedFee: data.financedFee, 
-				totalLoanAmount: data.finalLoanAmount, 
-				interestRate: data.interestRate, 
-				term: parseInt(loanTermInput.value) || 0, 
-				monthlyPayment: data.totalMonthlyPayment, 
-				pAndI: data.monthlyPI, 
-				tax: data.monthlyTax, 
-				insurance: data.monthlyInsurance, 
-				mi: data.monthlyMI, 
-				hoa: data.monthlyHOA, 
-				totalInterest: data.totalInterestPaid, 
-				amortizationData: data.amortizationData 
-			};
+			// Store current scenario data with proper loan type and closing costs
+			updateCurrentScenarioData(data, state, elements);
 			
 			// Trigger feature calculations 
 			if (state.showClosingCosts) calculateClosingCosts(data, state, elements); 
-			if (state.showExtraPayments) calculateExtraPayments(state, elements); 
+			if (state.showExtraPayments) calculateExtraPayments(state, elements);
 		}); 
 	}); 
 	
@@ -282,6 +314,9 @@ document.addEventListener('DOMContentLoaded', function () {
 			propertyTaxYearlyInput.value = (monthly * 12).toFixed(2);
 		}
 		state.overrides.propertyTax = true;
+		// Update chart immediately when user changes property tax
+		const data = calculateAll(state, elements);
+		updateCustomChart(data.monthlyPI, data.monthlyTax, data.monthlyInsurance, data.monthlyMI, data.monthlyHOA, elements.svgChart);
 	});
 	propertyTaxYearlyInput.addEventListener('input', () => {
 		const val = propertyTaxYearlyInput.value;
@@ -292,6 +327,9 @@ document.addEventListener('DOMContentLoaded', function () {
 			propertyTaxMonthlyInput.value = (yearly / 12).toFixed(2);
 		}
 		state.overrides.propertyTax = true;
+		// Update chart immediately when user changes property tax
+		const data = calculateAll(state, elements);
+		updateCustomChart(data.monthlyPI, data.monthlyTax, data.monthlyInsurance, data.monthlyMI, data.monthlyHOA, elements.svgChart);
 	});
 	homeInsuranceMonthlyInput.addEventListener('input', () => {
 		const val = homeInsuranceMonthlyInput.value;
@@ -302,6 +340,9 @@ document.addEventListener('DOMContentLoaded', function () {
 			homeInsuranceYearlyInput.value = (monthly * 12).toFixed(2);
 		}
 		state.overrides.homeInsurance = true;
+		// Update chart immediately when user changes home insurance
+		const data = calculateAll(state, elements);
+		updateCustomChart(data.monthlyPI, data.monthlyTax, data.monthlyInsurance, data.monthlyMI, data.monthlyHOA, elements.svgChart);
 	});
 	homeInsuranceYearlyInput.addEventListener('input', () => {
 		const val = homeInsuranceYearlyInput.value;
@@ -312,6 +353,9 @@ document.addEventListener('DOMContentLoaded', function () {
 			homeInsuranceMonthlyInput.value = (yearly / 12).toFixed(2);
 		}
 		state.overrides.homeInsurance = true;
+		// Update chart immediately when user changes home insurance
+		const data = calculateAll(state, elements);
+		updateCustomChart(data.monthlyPI, data.monthlyTax, data.monthlyInsurance, data.monthlyMI, data.monthlyHOA, elements.svgChart);
 	});
 	miMonthlyInput.addEventListener('input', () => {
 		const val = miMonthlyInput.value;
@@ -323,6 +367,9 @@ document.addEventListener('DOMContentLoaded', function () {
 			miPercentInput.value = ((monthly * 12 / loanAmount) * 100).toFixed(2);
 		}
 		state.overrides.mi = true;
+		// Update chart immediately when user changes mortgage insurance
+		const data = calculateAll(state, elements);
+		updateCustomChart(data.monthlyPI, data.monthlyTax, data.monthlyInsurance, data.monthlyMI, data.monthlyHOA, elements.svgChart);
 	});
 	miPercentInput.addEventListener('input', () => {
 		const val = miPercentInput.value;
@@ -334,6 +381,9 @@ document.addEventListener('DOMContentLoaded', function () {
 			miMonthlyInput.value = ((loanAmount * (percent / 100)) / 12).toFixed(2);
 		}
 		state.overrides.mi = true;
+		// Update chart immediately when user changes mortgage insurance
+		const data = calculateAll(state, elements);
+		updateCustomChart(data.monthlyPI, data.monthlyTax, data.monthlyInsurance, data.monthlyMI, data.monthlyHOA, elements.svgChart);
 	});
 
 	// Blur: if both fields empty, restore calculated; else keep override
@@ -407,70 +457,148 @@ document.addEventListener('DOMContentLoaded', function () {
 		state.transactionType = 'purchase'; 
 		handleToggle(btnPurchase, btnRefinance); 
 		updateDynamicSections(state, elements); 
+		// Reset interest rate so the new program's estimate is applied
+		state.editingInterestRate = false;
+		interestRateInput.value = '';
 		const data = calculateAll(state, elements);
 		updateUI(data, state, elements);
+		
+		// Update current scenario data with new transaction type
+		updateCurrentScenarioData(data, state, elements);
 	}); 
 	btnRefinance.addEventListener('click', () => { 
 		state.transactionType = 'refinance'; 
 		handleToggle(btnRefinance, btnPurchase); 
 		updateDynamicSections(state, elements); 
+		state.editingInterestRate = false;
+		interestRateInput.value = '';
 		const data = calculateAll(state, elements);
 		updateUI(data, state, elements);
+		
+		// Update current scenario data with new transaction type
+		updateCurrentScenarioData(data, state, elements);
 	}); 
-	btnConventional.addEventListener('click', () => { 
+    	btnConventional.addEventListener('click', () => { 
 		state.loanType = 'conventional'; 
 		handleToggle(btnConventional, [btnFha, btnVa]); 
 		updateDynamicSections(state, elements); 
-		const data = calculateAll(state, elements);
-		updateUI(data, state, elements);
+		state.editingInterestRate = false;
+		interestRateInput.value = '';
+		// Clear MI fields so new loan type calculations take effect
+		if (!state.overrides.mi) {
+			elements.miMonthlyInput.value = '';
+			elements.miPercentInput.value = '';
+		}
+		recalcAndRenderAll();
 	}); 
 	btnFha.addEventListener('click', () => { 
 		state.loanType = 'fha'; 
 		handleToggle(btnFha, [btnConventional, btnVa]); 
 		updateDynamicSections(state, elements); 
-		const data = calculateAll(state, elements);
-		updateUI(data, state, elements);
+		state.editingInterestRate = false;
+		interestRateInput.value = '';
+		// Clear MI fields so new loan type calculations take effect
+		if (!state.overrides.mi) {
+			elements.miMonthlyInput.value = '';
+			elements.miPercentInput.value = '';
+		}
+		recalcAndRenderAll();
 	}); 
 	btnVa.addEventListener('click', () => { 
 		state.loanType = 'va'; 
 		handleToggle(btnVa, [btnConventional, btnFha]); 
 		updateDynamicSections(state, elements); 
-		const data = calculateAll(state, elements);
-		updateUI(data, state, elements);
+		state.editingInterestRate = false;
+		interestRateInput.value = '';
+		// Clear MI fields so new loan type calculations take effect
+		if (!state.overrides.mi) {
+			elements.miMonthlyInput.value = '';
+			elements.miPercentInput.value = '';
+		}
+		recalcAndRenderAll();
 	}); 
 	
-	// Sub-Toggles 
-	propTypeSfhBtn.addEventListener('click', () => { 
-		state.propertyType = 'sfh'; 
-		handleToggle(propTypeSfhBtn, [propTypeTownhomeBtn, propTypeCondoBtn]); 
-		const data = calculateAll(state, elements);
-		updateUI(data, state, elements);
-	}); 
-	propTypeTownhomeBtn.addEventListener('click', () => { 
-		state.propertyType = 'townhome'; 
-		handleToggle(propTypeTownhomeBtn, [propTypeSfhBtn, propTypeCondoBtn]); 
-		const data = calculateAll(state, elements);
-		updateUI(data, state, elements);
-	}); 
-	propTypeCondoBtn.addEventListener('click', () => { 
-		state.propertyType = 'condo'; 
-		handleToggle(propTypeCondoBtn, [propTypeSfhBtn, propTypeTownhomeBtn]); 
-		const data = calculateAll(state, elements);
-		updateUI(data, state, elements);
-	}); 
+	// Helper function for complete recalculation and UI update
+    const recalcAndRenderAll = () => {
+        const data = calculateAll(state, elements);
+        updateUI(data, state, elements);
+        updateCurrentScenarioData(data, state, elements);
+        if (state.showClosingCosts) calculateClosingCosts(data, state, elements);
+        if (state.showExtraPayments) calculateExtraPayments(state, elements);
+    };
 
-	// FHA Toggles 
+	// Sub-Toggles 
+    propTypeSfhBtn.addEventListener('click', () => { 
+        state.propertyType = 'sfh'; 
+        handleToggle(propTypeSfhBtn, [propTypeTownhomeBtn, propTypeCondoBtn]); 
+        // Clear property-type dependent fields so new calculations take effect
+        if (!state.overrides.propertyTax) {
+            elements.propertyTaxMonthlyInput.value = '';
+            elements.propertyTaxYearlyInput.value = '';
+        }
+        if (!state.overrides.homeInsurance) {
+            elements.homeInsuranceMonthlyInput.value = '';
+            elements.homeInsuranceYearlyInput.value = '';
+        }
+        if (!state.overrides.mi) {
+            elements.miMonthlyInput.value = '';
+            elements.miPercentInput.value = '';
+        }
+        recalcAndRenderAll();
+    }); 
+    propTypeTownhomeBtn.addEventListener('click', () => { 
+        state.propertyType = 'townhome'; 
+        handleToggle(propTypeTownhomeBtn, [propTypeSfhBtn, propTypeCondoBtn]); 
+        // Clear property-type dependent fields so new calculations take effect
+        if (!state.overrides.propertyTax) {
+            elements.propertyTaxMonthlyInput.value = '';
+            elements.propertyTaxYearlyInput.value = '';
+        }
+        if (!state.overrides.homeInsurance) {
+            elements.homeInsuranceMonthlyInput.value = '';
+            elements.homeInsuranceYearlyInput.value = '';
+        }
+        if (!state.overrides.mi) {
+            elements.miMonthlyInput.value = '';
+            elements.miPercentInput.value = '';
+        }
+        recalcAndRenderAll();
+    }); 
+    propTypeCondoBtn.addEventListener('click', () => { 
+        state.propertyType = 'condo'; 
+        handleToggle(propTypeCondoBtn, [propTypeSfhBtn, propTypeTownhomeBtn]); 
+        // Clear property-type dependent fields so new calculations take effect
+        if (!state.overrides.homeInsurance) {
+            elements.homeInsuranceMonthlyInput.value = '';
+            elements.homeInsuranceYearlyInput.value = '';
+        }
+        if (!state.overrides.mi) {
+            elements.miMonthlyInput.value = '';
+            elements.miPercentInput.value = '';
+        }
+        recalcAndRenderAll();
+    }); 
+
+		// FHA Toggles 
 	fhaFinanceUfmipBtn.addEventListener('click', () => { 
 		state.fhaFinanceUfmip = true; 
 		handleToggle(fhaFinanceUfmipBtn, fhaPayCashUfmipBtn); 
-		const data = calculateAll(state, elements);
-		updateUI(data, state, elements);
+		// Clear MI fields so new FHA calculations take effect
+		if (!state.overrides.mi) {
+			elements.miMonthlyInput.value = '';
+			elements.miPercentInput.value = '';
+		}
+		recalcAndRenderAll();
 	}); 
 	fhaPayCashUfmipBtn.addEventListener('click', () => { 
 		state.fhaFinanceUfmip = false; 
 		handleToggle(fhaPayCashUfmipBtn, fhaFinanceUfmipBtn); 
-		const data = calculateAll(state, elements);
-		updateUI(data, state, elements);
+		// Clear MI fields so new FHA calculations take effect
+		if (!state.overrides.mi) {
+			elements.miMonthlyInput.value = '';
+			elements.miPercentInput.value = '';
+		}
+		recalcAndRenderAll();
 	}); 
 
 	// VA Toggles 
@@ -478,42 +606,55 @@ document.addEventListener('DOMContentLoaded', function () {
 		state.vaExempt = false; 
 		handleToggle(vaExemptNoBtn, vaExemptYesBtn); 
 		updateDynamicSections(state, elements); 
-		const data = calculateAll(state, elements);
-		updateUI(data, state, elements);
+        recalcAndRenderAll();
 	}); 
 	vaExemptYesBtn.addEventListener('click', () => { 
 		state.vaExempt = true; 
 		handleToggle(vaExemptYesBtn, vaExemptNoBtn); 
 		updateDynamicSections(state, elements); 
-		const data = calculateAll(state, elements);
-		updateUI(data, state, elements);
+        recalcAndRenderAll();
 	}); 
-	vaFirstUseBtn.addEventListener('click', () => { 
+		vaFirstUseBtn.addEventListener('click', () => { 
 		state.vaUseType = 'first_use'; 
 		handleToggle(vaFirstUseBtn, vaSubsequentUseBtn); 
-		const data = calculateAll(state, elements);
-		updateUI(data, state, elements);
+		// Clear MI fields so new VA calculations take effect
+		if (!state.overrides.mi) {
+			elements.miMonthlyInput.value = '';
+			elements.miPercentInput.value = '';
+		}
+		recalcAndRenderAll();
 	}); 
 	vaSubsequentUseBtn.addEventListener('click', () => { 
 		state.vaUseType = 'subsequent_use'; 
 		handleToggle(vaSubsequentUseBtn, vaFirstUseBtn); 
-		const data = calculateAll(state, elements);
-		updateUI(data, state, elements);
+		// Clear MI fields so new VA calculations take effect
+		if (!state.overrides.mi) {
+			elements.miPercentInput.value = '';
+		}
+		recalcAndRenderAll();
 	}); 
 	vaFinanceFeeBtn.addEventListener('click', () => { 
 		state.vaFinanceFee = true; 
 		handleToggle(vaFinanceFeeBtn, vaPayCashBtn); 
-		const data = calculateAll(state, elements);
-		updateUI(data, state, elements);
+		// Clear MI fields so new VA calculations take effect
+		if (!state.overrides.mi) {
+			elements.miMonthlyInput.value = '';
+			elements.miPercentInput.value = '';
+		}
+		recalcAndRenderAll();
 	}); 
 	vaPayCashBtn.addEventListener('click', () => { 
 		state.vaFinanceFee = false; 
 		handleToggle(vaPayCashBtn, vaFinanceFeeBtn); 
-		const data = calculateAll(state, elements);
-		updateUI(data, state, elements);
+		// Clear MI fields so new VA calculations take effect
+		if (!state.overrides.mi) {
+			elements.miMonthlyInput.value = '';
+			elements.miPercentInput.value = '';
+		}
+		recalcAndRenderAll();
 	}); 
 	
-	resetFieldsBtn.addEventListener('click', () => {
+    resetFieldsBtn.addEventListener('click', () => {
 		interestRateInput.value = ''; 
 		propertyTaxMonthlyInput.value = ''; 
 		propertyTaxYearlyInput.value = ''; 
@@ -529,8 +670,10 @@ document.addEventListener('DOMContentLoaded', function () {
 		state.overrides.propertyTax = false;
 		state.overrides.homeInsurance = false;
 		state.overrides.mi = false;
-		const data = calculateAll(state, elements);
-		updateUI(data, state, elements);
+        recalcAndRenderAll();
+        // Disable reset until user changes optional fields again
+        resetFieldsBtn.disabled = true;
+        resetFieldsBtn.classList.add('opacity-50', 'cursor-not-allowed');
 	}); 
 
 	// When leaving the interest rate field: format or restore
@@ -559,10 +702,15 @@ document.addEventListener('DOMContentLoaded', function () {
 		} 
 	}); 
 
-	toggleClosingCosts.addEventListener('change', () => { 
-		state.showClosingCosts = toggleClosingCosts.checked; 
-		closingCostsContainer.classList.toggle('hidden', !state.showClosingCosts); 
-	}); 
+    toggleClosingCosts.addEventListener('change', () => { 
+        state.showClosingCosts = toggleClosingCosts.checked; 
+        closingCostsCard.classList.toggle('hidden', !state.showClosingCosts); 
+        // Recalculate and render if enabled
+        if (state.showClosingCosts) { 
+            const data = calculateAll(state, elements); 
+            calculateClosingCosts(data, state, elements); 
+        } 
+    }); 
 
 	toggleExtraPayments.addEventListener('change', () => { 
 		state.showExtraPayments = toggleExtraPayments.checked; 
@@ -578,18 +726,35 @@ document.addEventListener('DOMContentLoaded', function () {
 	extraPaymentInputs.forEach(input => input.addEventListener('input', () => calculateExtraPayments(state, elements))); 
 
 	// --- Scenarios ---
-	saveScenarioBtn.addEventListener('click', () => { 
+    saveScenarioBtn.addEventListener('click', () => { 
+ 		// Recalculate to ensure current UI values (including interest rate) are captured
+		const data = calculateAll(state, elements);
+		updateCurrentScenarioData(data, state, elements);
+		// Deep clone so later edits don't mutate saved scenarios
+		const snapshot = JSON.parse(JSON.stringify(state.currentScenarioData));
 		if (state.savedScenarios.length < 3) { 
-			state.savedScenarios.push(state.currentScenarioData); 
+			state.savedScenarios.push(snapshot); 
 			renderScenarioTable(state, elements); 
 		} 
 		if (state.savedScenarios.length >= 3) { 
 			saveScenarioBtn.disabled = true; 
 			saveScenarioBtn.classList.add('opacity-50', 'cursor-not-allowed'); 
 		} 
+        // Enable clear scenarios since we have at least one now
+        clearScenariosBtn.disabled = state.savedScenarios.length === 0;
+        clearScenariosBtn.classList.toggle('opacity-50', state.savedScenarios.length === 0);
+        clearScenariosBtn.classList.toggle('cursor-not-allowed', state.savedScenarios.length === 0);
 	}); 
 
-	clearScenariosBtn.addEventListener('click', () => clearAllScenarios(state, elements)); 
+    clearScenariosBtn.addEventListener('click', () => { 
+        if (state.savedScenarios.length === 0) return; 
+        clearAllScenarios(state, elements); 
+        // Reset buttons state
+        clearScenariosBtn.disabled = true;
+        clearScenariosBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        saveScenarioBtn.disabled = false;
+        saveScenarioBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }); 
 	
 	scenarioTableBody.addEventListener('click', function(e) { 
 		if (e.target && e.target.classList.contains('delete-scenario-btn')) { 
@@ -605,64 +770,87 @@ document.addEventListener('DOMContentLoaded', function () {
 		} 
 	}); 
 	
-	printSummaryBtn.addEventListener('click', () => { 
-		const { jsPDF } = window.jspdf; 
-		const pdf = new jsPDF({ 
-			orientation: 'p', 
-			unit: 'px', 
-			format: 'a4' 
-		}); 
-
-		const contentToPrint = document.querySelector('.container'); 
-		html2canvas(contentToPrint, { 
-			scale: 2, 
-			backgroundColor: '#111827' // bg-gray-900 
-		}).then(canvas => { 
-			const imgData = canvas.toDataURL('image/png'); 
-			const imgProps = pdf.getImageProperties(imgData); 
-			const pdfWidth = pdf.internal.pageSize.getWidth(); 
-			const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width; 
-			pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight); 
-			pdf.save('mortgage-summary.pdf'); 
-		}); 
-	}); 
+    // Removed print summary logic
 	
-	const initializeFeatureVisibility = () => { 
-		closingCostsContainer.classList.toggle('hidden', !state.showClosingCosts); 
+    const initializeFeatureVisibility = () => { 
+        closingCostsCard.classList.toggle('hidden', !state.showClosingCosts); 
 		extraPaymentsContainer.classList.toggle('hidden', !state.showExtraPayments); 
 		amortizationContainer.classList.toggle('hidden', !state.showAmortization); 
 	} 
 
-	// --- Initial Setup --- 
-	initializeFeatureVisibility(); 
+    // Track if optional fields changed to enable reset button
+    const markOptionalFieldsChanged = () => {
+        resetFieldsBtn.disabled = false;
+        resetFieldsBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    };
+
+    [propertyTaxMonthlyInput, propertyTaxYearlyInput, homeInsuranceMonthlyInput, homeInsuranceYearlyInput, miMonthlyInput, miPercentInput]
+        .forEach(el => el.addEventListener('input', markOptionalFieldsChanged));
+
+    // --- Initial Setup --- 
+    initializeFeatureVisibility(); 
 	updateDynamicSections(state, elements); 
 	calculateMaxPurchasePrice(state, elements);
 	
+	// Helper function to get closing costs data
+	const getClosingCostsData = (data, state, elements) => {
+		if (!state.showClosingCosts) return null;
+
+		// Build the exact breakdown using the same logic as the UI render function
+		const breakdown = buildClosingCostsBreakdown(data, state, elements);
+		return {
+			homePrice: data.homePrice,
+			baseLoanAmount: data.baseLoanAmount,
+			loanType: state.loanType,
+			interestRate: data.interestRate,
+			estimatedTotal: breakdown.total,
+			ufmip: data.ufmip || 0,
+			vaFundingFee: data.vaFundingFee || 0,
+			monthlyInsurance: parseFloat(elements.homeInsuranceMonthlyInput?.value) || 0,
+			monthlyTax: parseFloat(elements.propertyTaxMonthlyInput?.value) || 0,
+			breakdown
+		};
+	};
+	
+	// Helper function to update current scenario data
+	const updateCurrentScenarioData = (data, state, elements) => {
+		state.currentScenarioData = { 
+			loanType: state.loanType.toUpperCase(), 
+			transactionType: state.transactionType,
+			propertyType: state.propertyType,
+			homePrice: data.homePrice, 
+			downPayment: state.transactionType === 'purchase' ? (data.homePrice - data.baseLoanAmount) : 'N/A', 
+			loanAmount: data.baseLoanAmount, 
+			financedFee: data.financedFee, 
+			totalLoanAmount: data.finalLoanAmount, 
+			interestRate: data.interestRate, 
+			term: parseInt(loanTermInput.value) || 0, 
+			monthlyPayment: data.totalMonthlyPayment, 
+			pAndI: data.monthlyPI, 
+			tax: data.monthlyTax, 
+			insurance: data.monthlyInsurance, 
+			mi: data.monthlyMI, 
+			hoa: data.monthlyHOA, 
+			totalInterest: data.totalInterestPaid, 
+			amortizationData: data.amortizationData,
+			// Add closing costs data
+			closingCosts: state.showClosingCosts ? getClosingCostsData(data, state, elements) : null
+		};
+	};
+
 	// Initial calculation
 		const data = calculateAll(state, elements);
 		updateUI(data, state, elements);
 
 		// Seed current scenario data so Save Scenario works before any input changes
-		state.currentScenarioData = {
-			loanType: state.loanType.toUpperCase(),
-			homePrice: data.homePrice,
-			downPayment: state.transactionType === 'purchase' ? (data.homePrice - data.baseLoanAmount) : 'N/A',
-			loanAmount: data.baseLoanAmount,
-			financedFee: data.financedFee,
-			totalLoanAmount: data.finalLoanAmount,
-			interestRate: data.interestRate,
-			term: parseInt(loanTermInput.value) || 0,
-			monthlyPayment: data.totalMonthlyPayment,
-			pAndI: data.monthlyPI,
-			tax: data.monthlyTax,
-			insurance: data.monthlyInsurance,
-			mi: data.monthlyMI,
-			hoa: parseFloat(hoaInput.value) || 0,
-			totalInterest: data.totalInterestPaid,
-			amortizationData: data.amortizationData
-		};
+		updateCurrentScenarioData(data, state, elements);
 
 		// Populate feature sections on first load
-		if (state.showClosingCosts) calculateClosingCosts(data, state, elements);
-		if (state.showExtraPayments) calculateExtraPayments(state, elements);
+        if (state.showClosingCosts) calculateClosingCosts(data, state, elements);
+        if (state.showExtraPayments) calculateExtraPayments(state, elements);
+
+        // Initialize action buttons state
+        clearScenariosBtn.disabled = state.savedScenarios.length === 0;
+        clearScenariosBtn.classList.toggle('opacity-50', state.savedScenarios.length === 0);
+        clearScenariosBtn.classList.toggle('cursor-not-allowed', state.savedScenarios.length === 0);
 }); 

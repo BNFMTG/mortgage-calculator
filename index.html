@@ -22,7 +22,7 @@
 </head> 
 <body class="bg-gray-900 text-gray-200"> 
 
-	<div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-5xl"> 
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-screen-2xl 2xl:max-w-[1600px]"> 
 		
 		<!-- Header --> 
 		<header class="text-center mb-8 relative"> 
@@ -32,6 +32,15 @@
 				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg> 
 			</button> 
 		</header> 
+
+		<!-- Sticky Action Toolbar -->
+		<div id="action-toolbar" class="sticky top-2 z-40 mb-4">
+			<div class="bg-gray-800/90 backdrop-blur p-3 rounded-xl flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/10">
+				<button id="save-scenario-btn" class="px-4 py-2 text-sm font-medium rounded-md bg-blue-500 hover:bg-blue-400 transition-colors">Save Scenario</button>
+				<button id="clear-scenarios-btn" class="px-4 py-2 text-sm font-medium rounded-md bg-gray-600 transition-colors opacity-50 cursor-not-allowed" disabled>Clear Scenarios</button>
+				<button id="reset-fields-btn" class="px-4 py-2 text-sm font-medium rounded-md bg-gray-600 transition-colors opacity-50 cursor-not-allowed" disabled>Reset Optional Fields</button>
+			</div>
+		</div>
 
 		<!-- Settings Panel --> 
 		<div id="settings-panel" class="fixed top-24 right-8 bg-gray-700 p-4 rounded-lg shadow-xl z-50 opacity-0 transform scale-95 pointer-events-none"> 
@@ -52,10 +61,10 @@
 			</div> 
 		</div> 
 
-		<div class="grid grid-cols-1 lg:grid-cols-5 gap-8"> 
+        <div class="grid grid-cols-1 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-8"> 
 			
 			<!-- Left Side: Input Form --> 
-			<div class="lg:col-span-3 bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl shadow-blue-900/10"> 
+            <div class="lg:col-span-4 xl:col-span-5 2xl:col-span-6 bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl shadow-blue-900/10"> 
 				<!-- Payment Calculator View --> 
 				<div id="payment-calculator-view"> 
 					<form id="mortgage-form" onsubmit="return false;"> 
@@ -129,8 +138,8 @@
 								<div id="fha-suggestion-warning" class="text-red-500 text-xs hidden"></div> 
 							</div> 
 
-							<!-- Loan & Property Details --> 
-							<div class="grid grid-cols-1 sm:grid-cols-2 gap-6"> 
+                            <!-- Loan & Property Details --> 
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"> 
 								 <div> 
 									<label for="credit-score" class="block text-sm font-medium text-gray-300 mb-1">Credit Score</label> 
 									<input type="number" id="credit-score" value="760" class="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 text-white rounded-lg focus-ring"> 
@@ -280,37 +289,38 @@
                                     </div>
                                 </details>
                             </div>
-							<div class="pt-4"> 
-								<button id="reset-fields-btn" type="button" class="w-full py-2.5 text-sm font-medium rounded-md bg-gray-600 hover:bg-gray-500 transition-colors">Reset Optional Fields</button> 
-							</div> 
+                            <!-- Reset button moved to sticky action toolbar -->
 						</div> 
 					</form> 
 				</div> 
 			</div> 
 
 			<!-- Right Side: Results --> 
-			<div class="lg:col-span-2"> 
-				<div class="bg-blue-600 text-white p-6 sm:p-8 rounded-2xl shadow-lg flex flex-col justify-between text-center sticky top-8"> 
-					<!-- Payment Result View --> 
-					<div id="payment-result-view"> 
-						<h2 class="text-lg font-medium text-blue-200">Your Estimated Monthly Payment</h2> 
-						<p id="monthly-payment" class="text-4xl sm:text-5xl font-extrabold my-2">$0</p> 
-					</div> 
+            <div class="lg:col-span-2 xl:col-span-2 2xl:col-span-2"> 
+                <!-- Sticky wrapper so both cards move together -->
+                <div class="sticky top-8 space-y-4">
+                    <div class="bg-blue-600 text-white p-6 sm:p-8 rounded-2xl shadow-lg flex flex-col justify-between text-center"> 
+                        <!-- Payment Result View --> 
+                        <div id="payment-result-view"> 
+                            <h2 class="text-lg font-medium text-blue-200">Your Estimated Monthly Payment</h2> 
+                            <p id="monthly-payment" class="text-4xl sm:text-5xl font-extrabold my-2">$0</p> 
+                        </div> 
 
-					<!-- Custom SVG Chart Area --> 
-					<div id="svg-chart-container" class="flex-grow flex justify-center items-center w-full h-64 my-4"> 
-						<svg id="custom-chart" viewBox="-20 -20 240 240" class="w-full h-full"></svg> 
-					</div> 
-					<div id="total-interest-display" class="text-blue-200 text-sm"></div> 
-					<div class="mt-6 flex justify-center space-x-4"> 
-						<button id="save-scenario-btn" class="w-1/2 py-2.5 text-sm font-medium rounded-md bg-blue-500 hover:bg-blue-400 transition-colors">Save Scenario</button> 
-						<button id="clear-scenarios-btn" class="w-1/2 py-2.5 text-sm font-medium rounded-md bg-gray-600 hover:bg-gray-500 transition-colors hidden">Clear Scenarios</button> 
-					</div> 
-					<div class="mt-4"> 
-						 <button id="print-summary-btn" class="w-full py-2.5 text-sm font-medium rounded-md bg-blue-800 hover:bg-blue-700 transition-colors">Print Summary</button> 
-					</div> 
-				</div> 
-			</div> 
+                        <!-- Custom SVG Chart Area --> 
+                        <div id="svg-chart-container" class="flex-grow flex justify-center items-center w-full h-56 xl:h-64 my-4"> 
+                            <svg id="custom-chart" viewBox="-20 -20 240 240" class="w-full h-full"></svg> 
+                        </div> 
+                        <div id="total-interest-display" class="text-blue-200 text-sm"></div> 
+						<!-- Buttons moved to action toolbar -->
+                    </div>
+
+                    <!-- New Closing Costs Card (blue) -->
+					<div id="closing-costs-card" class="bg-blue-600 text-white p-6 sm:p-8 rounded-2xl shadow-lg text-left hidden">
+                        <h2 class="text-lg font-medium text-blue-200 text-center">Estimated Closing Costs</h2>
+                        <div id="closing-costs-content" class="mt-4"></div>
+                    </div>
+                </div>
+            </div> 
 		</div> 
 		
 		<!-- Scenario Comparison Table --> 
@@ -333,13 +343,7 @@
 			</details> 
 		</div> 
 
-		<!-- Additional Feature Sections --> 
-		<div id="closing-costs-container" class="mt-8 bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl shadow-blue-900/10 hidden"> 
-			<details open> 
-				<summary class="text-xl font-bold text-white cursor-pointer hover:text-blue-400 transition-colors">Estimated Closing Costs</summary> 
-				<div id="closing-costs-content" class="mt-4"></div> 
-			</details> 
-		</div> 
+        <!-- Additional Feature Sections --> 
 
 		<div id="extra-payments-container" class="mt-8 bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl shadow-blue-900/10 hidden"> 
 			 <details open> 

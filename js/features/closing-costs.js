@@ -1,53 +1,133 @@
 import { UT_COSTS } from '../data.js';
 import { formatCurrency, parseFloatInput } from '../utils.js';
 
+// Pure calculator that returns a structured breakdown for closing costs
+export const buildClosingCostsBreakdown = (data, state, elements) => {
+    if (!data || !data.homePrice) {
+        return { items: [], total: 0 };
+    }
+
+    const { baseLoanAmount, loanType, interestRate } = data;
+
+    // Lender title policy: purchase & refi use the same %/min structure
+    const lenderTitleCost = Math.max(baseLoanAmount * UT_COSTS.lenderTitle.pct, UT_COSTS.lenderTitle.min);
+
+    const costs = {
+        "Appraisal": UT_COSTS.appraisal,
+        "Credit Report": UT_COSTS.creditReport,
+        "Flood Certification": UT_COSTS.floodCert,
+        "Lender's Title Insurance": lenderTitleCost,
+        "Settlement/Escrow Fee": UT_COSTS.escrowSettlement,
+        "Recording Fees": UT_COSTS.recordingDefaultTotal,
+        ["Prepaid Interest (" + UT_COSTS.prepaidInterestDays + " days)"]: (baseLoanAmount * (interestRate / 100) / 365) * UT_COSTS.prepaidInterestDays,
+        "Homeowner's Insurance (1 year)": parseFloatInput(elements.homeInsuranceMonthlyInput) * 12,
+        ["Property Tax Escrow (" + UT_COSTS.taxEscrowMonths + " months)"]: parseFloatInput(elements.propertyTaxMonthlyInput) * UT_COSTS.taxEscrowMonths
+    };
+
+    // Program conditionals (cash-paid fees)
+    if (loanType === 'fha' && !state.fhaFinanceUfmip) {
+        costs["Upfront MIP (Paid Cash)"] = data.ufmip;
+    }
+    if (loanType === 'va' && !state.vaExempt && !state.vaFinanceFee) {
+        costs["VA Funding Fee (Paid Cash)"] = data.vaFundingFee;
+    }
+
+    const items = Object.entries(costs).map(([label, value]) => ({ label, value }));
+    const total = items.reduce((sum, i) => sum + i.value, 0);
+    return { items, total };
+};
+
 export const calculateClosingCosts = (data, state, elements) => {
 	if (!data || !data.homePrice) {
 		elements.closingCostsContentEl.innerHTML = '<p>Enter loan details to estimate closing costs.</p>';
 		return;
 	}
 
-	const { baseLoanAmount, loanType, interestRate } = data;
+    const breakdown = buildClosingCostsBreakdown(data, state, elements);
 
-	// Lender title policy: purchase & refi use the same %/min structure
-	const lenderTitleCost = Math.max(baseLoanAmount * UT_COSTS.lenderTitle.pct, UT_COSTS.lenderTitle.min);
+    // Bucket configuration using base labels (ignore dynamic parentheses)
+    const lenderFeesBase = ['Appraisal', 'Credit Report', 'Flood Certification', 'Upfront MIP (Paid Cash)', 'VA Funding Fee (Paid Cash)'];
+    const thirdPartyBase = ["Lender's Title Insurance", 'Settlement/Escrow Fee', 'Recording Fees'];
+    const escrowPrepaidsBase = ['Prepaid Interest', "Homeowner's Insurance", 'Property Tax Escrow'];
 
-	const costs = {
-		"Appraisal": UT_COSTS.appraisal,
-		"Credit Report": UT_COSTS.creditReport,
-		"Flood Certification": UT_COSTS.floodCert,
-		"Lender's Title Insurance": lenderTitleCost,
-		"Settlement/Escrow Fee": UT_COSTS.escrowSettlement,
-		"Recording Fees": UT_COSTS.recordingDefaultTotal,
-		["Prepaid Interest (" + UT_COSTS.prepaidInterestDays + " days)"]: (baseLoanAmount * (interestRate / 100) / 365) * UT_COSTS.prepaidInterestDays,
-		"Homeowner's Insurance (1 year)": parseFloatInput(elements.homeInsuranceMonthlyInput) * 12,
-		["Property Tax Escrow (" + UT_COSTS.taxEscrowMonths + " months)"]: parseFloatInput(elements.propertyTaxMonthlyInput) * UT_COSTS.taxEscrowMonths
-	};
+    const buckets = {
+        'Lender Fees': [],
+        'Third-Party Fees': [],
+        'Escrow/Prepaids': [],
+        'Other': []
+    };
 
-	// Program conditionals (cash-paid fees)
-	if (loanType === 'fha' && !state.fhaFinanceUfmip) {
-		costs["Upfront MIP (Paid Cash)"] = data.ufmip;
-	}
-	if (loanType === 'va' && !state.vaExempt && !state.vaFinanceFee) {
-		costs["VA Funding Fee (Paid Cash)"] = data.vaFundingFee;
-	}
+    const getBase = (label) => label.split(' (')[0];
+    const pushToBucket = (item) => {
+        const base = getBase(item.label);
+        if (lenderFeesBase.includes(base)) return buckets['Lender Fees'].push(item);
+        if (thirdPartyBase.includes(base)) return buckets['Third-Party Fees'].push(item);
+        if (escrowPrepaidsBase.includes(base)) return buckets['Escrow/Prepaids'].push(item);
+        return buckets['Other'].push(item);
+    };
 
-	let totalCosts = Object.values(costs).reduce((sum, v) => sum + v, 0);
+    breakdown.items.forEach(pushToBucket);
 
-	let html = `<div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm">`;
-	for (const [label, value] of Object.entries(costs)) {
-		html += `
-			<div class="flex justify-between border-b border-gray-700 py-1.5">
-				<span class="text-gray-400">${label}</span>
-				<span class="font-medium text-gray-200">${formatCurrency(value)}</span>
-			</div>`;
-	}
-	html += `</div>
-		<div class="flex justify-between text-lg font-bold border-t-2 border-blue-500 mt-4 pt-2">
-			<span>Total Estimated Costs</span>
-			<span>${formatCurrency(totalCosts)}</span>
-		</div>
-		<p class="text-xs text-gray-500 mt-2">Note: Utah defaults. Title/escrow vary by company and file.</p>`;
+    // Remove Other bucket if empty
+    if (buckets['Other'].length === 0) delete buckets['Other'];
 
-	elements.closingCostsContentEl.innerHTML = html;
+    const renderBucket = (bucketName, items) => {
+        const subtotal = items.reduce((sum, i) => sum + i.value, 0);
+        const bucketId = `bucket-${bucketName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+        let section = `
+            <div class="bg-blue-500/10 rounded-lg">
+                <button data-target="${bucketId}" class="w-full flex items-center justify-between p-4 text-left">
+                    <span class="flex items-center gap-2">
+                        <span class="bucket-caret" aria-hidden="true">▶</span>
+                        <span class="text-sm font-semibold text-blue-200">${bucketName}</span>
+                    </span>
+                    <span class="text-sm font-semibold">${formatCurrency(subtotal)}</span>
+                </button>
+                <div id="${bucketId}" class="hidden px-4 pb-4">
+                    <div class="divide-y divide-blue-400/10">`;
+        items.forEach(item => {
+            section += `
+                        <div class="flex justify-between py-1.5">
+                            <span class="text-blue-100/80 text-sm">${item.label}</span>
+                            <span class="text-sm">${formatCurrency(item.value)}</span>
+                        </div>`;
+        });
+        section += `
+                    </div>
+                </div>
+            </div>`;
+        return section;
+    };
+
+    let html = '<div class="space-y-4">';
+    Object.entries(buckets).forEach(([name, items]) => {
+        if (items.length > 0) html += renderBucket(name, items);
+    });
+    html += `
+        <div class="flex justify-between text-lg font-bold border-t-2 border-blue-300/60 pt-3 mt-2">
+            <span>Total Estimated Costs</span>
+            <span>${formatCurrency(breakdown.total)}</span>
+        </div>
+        <p class="text-xs text-blue-100/70 mt-1">Note: Utah defaults. Title/escrow vary by company and file.</p>`;
+
+    elements.closingCostsContentEl.innerHTML = html;
+
+    // Wire up collapse/expand with default collapsed
+    const container = elements.closingCostsContentEl;
+    container.querySelectorAll('button[data-target]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-target');
+            const panel = document.getElementById(targetId);
+            if (!panel) return;
+            const arrow = btn.querySelector('.bucket-caret');
+            const isHidden = panel.classList.contains('hidden');
+            if (isHidden) {
+                panel.classList.remove('hidden');
+                if (arrow) arrow.textContent = '▼';
+            } else {
+                panel.classList.add('hidden');
+                if (arrow) arrow.textContent = '▶';
+            }
+        });
+    });
 };

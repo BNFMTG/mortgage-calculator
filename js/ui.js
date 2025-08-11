@@ -49,6 +49,7 @@ export const updateUI = (data, state, elements) => {
 		elements.loanBreakdownDisplay.classList.add('hidden'); 
 	} 
 
+	// Update chart with final values (respects user overrides) - these should be current after property type changes
 	updateCustomChart(data.monthlyPI, data.monthlyTax, data.monthlyInsurance, data.monthlyMI, data.monthlyHOA, elements.svgChart); 
 	
 	elements.amortizationTableBody.innerHTML = data.amortizationData.map(row => ` 

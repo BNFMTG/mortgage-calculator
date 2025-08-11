@@ -4,6 +4,11 @@ body {
 	scroll-behavior: smooth; 
 } 
 
+/* Improve large-screen readability for forms */
+.form-grid-wide .grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
 /* Custom styling for number input arrows */
 input[type=number]::-webkit-inner-spin-button, 
 input[type=number]::-webkit-outer-spin-button { 
