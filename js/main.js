@@ -81,11 +81,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	const scenarioTableBody = document.getElementById('scenario-table-body'); 
 	
 	// --- Settings Panel & Feature Elements --- 
-	const settingsBtn = document.getElementById('settings-btn'); 
-	const settingsPanel = document.getElementById('settings-panel'); 
-	const toggleClosingCosts = document.getElementById('toggle-closing-costs'); 
-	const toggleExtraPayments = document.getElementById('toggle-extra-payments'); 
-	const toggleAmortization = document.getElementById('toggle-amortization'); 
+	 
 	
 	const affordableHomePriceEl = document.getElementById('affordable-home-price'); 
     const closingCostsCard = document.getElementById('closing-costs-card'); 
@@ -120,9 +116,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		lastFocused: null, 
 		savedScenarios: [], 
 		currentScenarioData: {}, 
-		showClosingCosts: true, 
-		showExtraPayments: true, 
-		showAmortization: true, 
+		 
 		// State for tracking last calculated values 
 		lastCalculatedInterest: null, 
 		lastCalculatedTax: null, 
@@ -223,9 +217,9 @@ document.addEventListener('DOMContentLoaded', function () {
 			// Store current scenario data with proper loan type and closing costs
 			updateCurrentScenarioData(data, state, elements);
 			
-			// Trigger feature calculations 
-			if (state.showClosingCosts) calculateClosingCosts(data, state, elements); 
-			if (state.showExtraPayments) calculateExtraPayments(state, elements); 
+			// Trigger feature calculations (input event) - first instance
+			calculateClosingCosts(data, state, elements); // Always calculate closing costs
+			calculateExtraPayments(state, elements); // Always calculate extra payments 
 		}); 
 		input.addEventListener('change', () => {
 			let data;
@@ -265,9 +259,9 @@ document.addEventListener('DOMContentLoaded', function () {
 			// Store current scenario data with proper loan type and closing costs
 			updateCurrentScenarioData(data, state, elements);
 			
-			// Trigger feature calculations 
-			if (state.showClosingCosts) calculateClosingCosts(data, state, elements); 
-			if (state.showExtraPayments) calculateExtraPayments(state, elements);
+			// Trigger feature calculations (change event) - second instance
+			calculateClosingCosts(data, state, elements); // Always calculate closing costs
+			calculateExtraPayments(state, elements); // Always calculate extra payments
 		}); 
 	}); 
 	
@@ -503,8 +497,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const data = calculateAll(state, elements);
         updateUI(data, state, elements);
         updateCurrentScenarioData(data, state, elements);
-        if (state.showClosingCosts) calculateClosingCosts(data, state, elements);
-        if (state.showExtraPayments) calculateExtraPayments(state, elements);
+        calculateClosingCosts(data, state, elements); // Always calculate closing costs (recalcAndRenderAll)
+        calculateExtraPayments(state, elements); // Always calculate extra payments (recalcAndRenderAll)
     };
 
 	// Sub-Toggles 
@@ -668,39 +662,9 @@ document.addEventListener('DOMContentLoaded', function () {
 		}
 	});
 	
-	// --- Settings and Feature Listeners --- 
-	settingsBtn.addEventListener('click', (e) => { 
-		e.stopPropagation(); 
-		settingsPanel.classList.toggle('opacity-0'); 
-		settingsPanel.classList.toggle('scale-95'); 
-		settingsPanel.classList.toggle('pointer-events-none'); 
-	}); 
+ 
 
-	document.addEventListener('click', (e) => { 
-		if (!settingsPanel.contains(e.target) && !settingsBtn.contains(e.target)) { 
-			settingsPanel.classList.add('opacity-0', 'scale-95', 'pointer-events-none'); 
-		} 
-	}); 
-
-    toggleClosingCosts.addEventListener('change', () => { 
-        state.showClosingCosts = toggleClosingCosts.checked; 
-        closingCostsCard.classList.toggle('hidden', !state.showClosingCosts); 
-        // Recalculate and render if enabled
-        if (state.showClosingCosts) { 
-            const data = calculateAll(state, elements); 
-            calculateClosingCosts(data, state, elements); 
-        } 
-    }); 
-
-	toggleExtraPayments.addEventListener('change', () => { 
-		state.showExtraPayments = toggleExtraPayments.checked; 
-		extraPaymentsContainer.classList.toggle('hidden', !state.showExtraPayments); 
-	}); 
-
-	toggleAmortization.addEventListener('change', () => { 
-		state.showAmortization = toggleAmortization.checked; 
-		amortizationContainer.classList.toggle('hidden', !state.showAmortization); 
-	}); 
+ 
 
 	maxPurchasePriceInputs.forEach(input => input.addEventListener('input', () => calculateMaxPurchasePrice(state, elements))); 
 	extraPaymentInputs.forEach(input => input.addEventListener('input', () => calculateExtraPayments(state, elements))); 
@@ -752,11 +716,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	
     // Removed print summary logic
 	
-    const initializeFeatureVisibility = () => { 
-        closingCostsCard.classList.toggle('hidden', !state.showClosingCosts); 
-		extraPaymentsContainer.classList.toggle('hidden', !state.showExtraPayments); 
-		amortizationContainer.classList.toggle('hidden', !state.showAmortization); 
-	} 
+ 
 
     // Track if optional fields changed to enable reset button
     const markOptionalFieldsChanged = () => {
@@ -768,13 +728,12 @@ document.addEventListener('DOMContentLoaded', function () {
         .forEach(el => el.addEventListener('input', markOptionalFieldsChanged));
 
     // --- Initial Setup --- 
-    initializeFeatureVisibility(); 
+     
 	updateDynamicSections(state, elements); 
 	calculateMaxPurchasePrice(state, elements);
 	
 	// Helper function to get closing costs data
 	const getClosingCostsData = (data, state, elements) => {
-		if (!state.showClosingCosts) return null;
 
 		// Build the exact breakdown using the same logic as the UI render function
 		const breakdown = buildClosingCostsBreakdown(data, state, elements);
@@ -814,7 +773,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			totalInterest: data.totalInterestPaid, 
 			amortizationData: data.amortizationData,
 			// Add closing costs data
-			closingCosts: state.showClosingCosts ? getClosingCostsData(data, state, elements) : null
+			closingCosts: getClosingCostsData(data, state, elements)
 		};
 	};
 
@@ -825,9 +784,23 @@ document.addEventListener('DOMContentLoaded', function () {
 		// Seed current scenario data so Save Scenario works before any input changes
 		updateCurrentScenarioData(data, state, elements);
 
-		// Populate feature sections on first load
-        if (state.showClosingCosts) calculateClosingCosts(data, state, elements);
-        if (state.showExtraPayments) calculateExtraPayments(state, elements);
+		        // Populate feature sections on first load
+        calculateClosingCosts(data, state, elements); // Always calculate closing costs (initial setup)
+        calculateExtraPayments(state, elements); // Always calculate extra payments (initial setup)
+        
+        // Populate amortization schedule on first load
+        const amortizationData = data.amortizationData;
+        if (amortizationData && amortizationData.length > 0) {
+            elements.amortizationTableBody.innerHTML = amortizationData.map(row => `
+                <tr class="hover:bg-gray-700 transition-colors">
+                    <td class="px-4 py-3 text-sm text-gray-300">${row.month}</td>
+                    <td class="px-4 py-3 text-sm text-gray-300">${row.payment}</td>
+                    <td class="px-4 py-3 text-sm text-gray-300">${row.principal}</td>
+                    <td class="px-4 py-3 text-sm text-gray-300">${row.interest}</td>
+                    <td class="px-4 py-3 text-sm text-gray-300">${row.balance}</td>
+                </tr>
+            `).join('');
+        }
 
         // Initialize action buttons state
         clearScenariosBtn.disabled = state.savedScenarios.length === 0;
