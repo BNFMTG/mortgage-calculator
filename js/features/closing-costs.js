@@ -78,7 +78,7 @@ export const calculateClosingCosts = (data, state, elements) => {
             <div class="bg-blue-500/10 rounded-lg">
                 <button data-target="${bucketId}" class="w-full flex items-center justify-between p-4 text-left">
                     <span class="flex items-center gap-2">
-                        <span class="bucket-caret" aria-hidden="true">▶</span>
+                        <span class="bucket-caret" aria-hidden="true">▼</span>
                         <span class="text-sm font-semibold text-blue-200">${bucketName}</span>
                     </span>
                     <span class="text-sm font-semibold">${formatCurrency(subtotal)}</span>
@@ -136,10 +136,10 @@ export const calculateClosingCosts = (data, state, elements) => {
             const isHidden = panel.classList.contains('hidden');
             if (isHidden) {
                 panel.classList.remove('hidden');
-                if (arrow) arrow.textContent = '▼';
+                if (arrow) arrow.style.transform = 'rotate(0deg)';
             } else {
                 panel.classList.add('hidden');
-                if (arrow) arrow.textContent = '▶';
+                if (arrow) arrow.style.transform = 'rotate(-90deg)';
             }
         });
     });
@@ -155,7 +155,7 @@ export const calculateClosingCosts = (data, state, elements) => {
             
             // Expand all
             allPanels.forEach(panel => panel.classList.remove('hidden'));
-            allArrows.forEach(arrow => arrow.textContent = '▼');
+            allArrows.forEach(arrow => arrow.style.transform = 'rotate(0deg)');
         });
     }
     
@@ -166,7 +166,7 @@ export const calculateClosingCosts = (data, state, elements) => {
             
             // Collapse all
             allPanels.forEach(panel => panel.classList.add('hidden'));
-            allArrows.forEach(arrow => arrow.textContent = '▶');
+            allArrows.forEach(arrow => arrow.style.transform = 'rotate(-90deg)');
         });
     }
 };

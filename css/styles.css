@@ -74,6 +74,17 @@ input[type=number] {
 	display: inline-block;
 	width: 12px;
 	text-align: center;
+	transition: transform 0.2s ease-in-out;
+}
+
+/* Initial state for bucket carets - rotated to point right when collapsed */
+.bucket-caret {
+	transform: rotate(-90deg);
+}
+
+/* Initial state for scenario arrows - rotated to point right when collapsed */
+#monthly-breakdown-arrow, #closing-costs-arrow {
+	transform: rotate(-90deg);
 } 
 .chart-segment:hover { 
 	transform: scale(1.05); 

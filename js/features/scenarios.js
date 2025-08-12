@@ -44,7 +44,7 @@ export const renderScenarioTable = (state, elements) => {
 		// Add expandable functionality for Total Monthly
 		if (metric.isExpandable) {
 			labelContent = `<button onclick="toggleMonthlyBreakdown()" class="text-white hover:text-blue-400 cursor-pointer transition-colors">
-				<span id="monthly-breakdown-arrow">▶</span> ${metric.label}
+				<span id="monthly-breakdown-arrow">▼</span> ${metric.label}
 			</button>`;
 		}
 
@@ -98,7 +98,7 @@ export const renderScenarioTable = (state, elements) => {
 				row.classList.add('hidden');
 			}
 		});
-		arrow.textContent = isHidden ? '▼' : '▶';
+		arrow.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)'; // Monthly breakdown toggle
 	}; 
 
 	// Add closing costs with unified expandable breakdown organized by buckets
@@ -123,7 +123,7 @@ export const renderScenarioTable = (state, elements) => {
 		let ccRowHtml = `<tr class="hover:bg-gray-700 transition-colors"> 
 			<td class="py-3 px-2">
 				<button onclick="toggleAllClosingCosts()" class="text-white hover:text-blue-400 cursor-pointer transition-colors">
-					<span id="closing-costs-arrow">▶</span> Closing Costs
+					<span id="closing-costs-arrow">▼</span> Closing Costs
 				</button>
 			</td>`; 
 		for (let i = 0; i < 3; i++) { 
@@ -192,7 +192,7 @@ export const renderScenarioTable = (state, elements) => {
 					row.classList.add('hidden');
 				}
 			});
-			arrow.textContent = isHidden ? '▼' : '▶';
+			arrow.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)'; // Closing costs toggle
 		};
 	}
 
