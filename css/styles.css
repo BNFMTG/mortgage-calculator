@@ -81,6 +81,29 @@ input[type=number] {
 	max-height: 1000px; /* Increased for new sections */
 } 
 
+/* Modal styles */
+#extra-payment-modal {
+	transition: opacity 0.3s ease-in-out;
+}
+
+#extra-payment-modal.hidden {
+	opacity: 0;
+	pointer-events: none;
+}
+
+#extra-payment-modal:not(.hidden) {
+	opacity: 1;
+}
+
+#extra-payment-modal .bg-gray-800 {
+	transform: scale(0.95);
+	transition: transform 0.3s ease-in-out;
+}
+
+#extra-payment-modal:not(.hidden) .bg-gray-800 {
+	transform: scale(1);
+}
+
 /* Custom chart styles */
 .chart-segment { 
 	transition: transform 0.2s ease-in-out; 

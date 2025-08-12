@@ -85,7 +85,6 @@ document.addEventListener('DOMContentLoaded', function () {
 	
 	const affordableHomePriceEl = document.getElementById('affordable-home-price'); 
     const closingCostsCard = document.getElementById('closing-costs-card'); 
-	const extraPaymentsContainer = document.getElementById('extra-payments-container'); 
 	const amortizationContainer = document.getElementById('amortization-container'); 
 	
 	const maxPurchasePriceInputs = [ 
@@ -95,12 +94,8 @@ document.addEventListener('DOMContentLoaded', function () {
 		document.getElementById('afford-dti') 
 	]; 
 
-	const extraPaymentInputs = [ 
-		document.getElementById('extra-monthly-payment'), 
-		document.getElementById('extra-yearly-payment'), 
-		document.getElementById('one-time-payment') 
-	]; 
-	const extraPaymentResultsEl = document.getElementById('extra-payment-results'); 
+ 
+ 
 	const closingCostsContentEl = document.getElementById('closing-costs-content'); 
     // Removed Print Summary
 
@@ -152,8 +147,8 @@ document.addEventListener('DOMContentLoaded', function () {
 		monthlyPaymentEl, totalInterestDisplay, amortizationTableBody, svgChart,
 		
 		// Features
-		closingCostsContentEl, extraPaymentResultsEl, affordableHomePriceEl,
-		scenarioComparisonContainer, scenarioTableBody, saveScenarioBtn, clearScenariosBtn,
+		closingCostsContentEl, affordableHomePriceEl,
+		scenarioComparisonContainer, scenarioTableBody, saveScenarioBtn, clearScenariosBtn, resetFieldsBtn,
 		
 		// Max purchase price inputs
 		monthlyIncomeInput: maxPurchasePriceInputs[0],
@@ -161,14 +156,11 @@ document.addEventListener('DOMContentLoaded', function () {
 		affordDownPaymentInput: maxPurchasePriceInputs[2],
 		affordDtiInput: maxPurchasePriceInputs[3],
 		
-		// Extra payment inputs
-		extraMonthlyPaymentInput: extraPaymentInputs[0],
-		extraYearlyPaymentInput: extraPaymentInputs[1],
-		oneTimePaymentInput: extraPaymentInputs[2],
+
 		
 		// Containers
-        closingCostsCard, extraPaymentsContainer, amortizationContainer,
-		fhaOptionsContainer, vaContainer, vaOptionsContainer
+        closingCostsCard, amortizationContainer,
+		fhaOptionsContainer, vaContainer, vaOptionsContainer, amortizationTableBody
 	};
 
 	// --- Event Listeners --- 
@@ -218,8 +210,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			updateCurrentScenarioData(data, state, elements);
 			
 			// Trigger feature calculations (input event) - first instance
-			calculateClosingCosts(data, state, elements); // Always calculate closing costs
-			calculateExtraPayments(state, elements); // Always calculate extra payments 
+			calculateClosingCosts(data, state, elements); // Always calculate closing costs 
 		}); 
 		input.addEventListener('change', () => {
 			let data;
@@ -261,7 +252,6 @@ document.addEventListener('DOMContentLoaded', function () {
 			
 			// Trigger feature calculations (change event) - second instance
 			calculateClosingCosts(data, state, elements); // Always calculate closing costs
-			calculateExtraPayments(state, elements); // Always calculate extra payments
 		}); 
 	}); 
 	
@@ -498,7 +488,6 @@ document.addEventListener('DOMContentLoaded', function () {
         updateUI(data, state, elements);
         updateCurrentScenarioData(data, state, elements);
         calculateClosingCosts(data, state, elements); // Always calculate closing costs (recalcAndRenderAll)
-        calculateExtraPayments(state, elements); // Always calculate extra payments (recalcAndRenderAll)
     };
 
 	// Sub-Toggles 
@@ -667,7 +656,6 @@ document.addEventListener('DOMContentLoaded', function () {
  
 
 	maxPurchasePriceInputs.forEach(input => input.addEventListener('input', () => calculateMaxPurchasePrice(state, elements))); 
-	extraPaymentInputs.forEach(input => input.addEventListener('input', () => calculateExtraPayments(state, elements))); 
 
 	// --- Scenarios ---
     saveScenarioBtn.addEventListener('click', () => { 
@@ -715,8 +703,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	}); 
 	
     // Removed print summary logic
-	
- 
+
 
     // Track if optional fields changed to enable reset button
     const markOptionalFieldsChanged = () => {
@@ -786,7 +773,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
 		        // Populate feature sections on first load
         calculateClosingCosts(data, state, elements); // Always calculate closing costs (initial setup)
-        calculateExtraPayments(state, elements); // Always calculate extra payments (initial setup)
         
         // Populate amortization schedule on first load
         const amortizationData = data.amortizationData;
@@ -806,4 +792,55 @@ document.addEventListener('DOMContentLoaded', function () {
         clearScenariosBtn.disabled = state.savedScenarios.length === 0;
         clearScenariosBtn.classList.toggle('opacity-50', state.savedScenarios.length === 0);
         clearScenariosBtn.classList.toggle('cursor-not-allowed', state.savedScenarios.length === 0);
-}); 
+        
+        // Initialize Extra Payment Modal functionality
+        try {
+            const extraPaymentBtn = document.getElementById('extra-payment-btn');
+            const extraPaymentModal = document.getElementById('extra-payment-modal');
+            const closeExtraPaymentModal = document.getElementById('close-extra-payment-modal');
+            
+            if (extraPaymentBtn && extraPaymentModal && closeExtraPaymentModal) {
+                // Extra Payment Modal Event Listeners
+                extraPaymentBtn.addEventListener('click', () => {
+                    extraPaymentModal.classList.remove('hidden');
+                    // Focus on first input when modal opens
+                    setTimeout(() => {
+                        document.getElementById('extra-monthly-payment')?.focus();
+                    }, 100);
+                });
+                
+                closeExtraPaymentModal.addEventListener('click', () => {
+                    extraPaymentModal.classList.add('hidden');
+                });
+                
+                // Close modal when clicking outside
+                extraPaymentModal.addEventListener('click', (e) => {
+                    if (e.target === extraPaymentModal) {
+                        extraPaymentModal.classList.add('hidden');
+                    }
+                });
+                
+                // Close modal with Escape key
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && !extraPaymentModal.classList.contains('hidden')) {
+                        extraPaymentModal.classList.add('hidden');
+                    }
+                });
+                
+                // Extra payment input event listeners for real-time calculation
+                const extraMonthlyPaymentInput = document.getElementById('extra-monthly-payment');
+                const extraYearlyPaymentInput = document.getElementById('extra-yearly-payment');
+                const oneTimePaymentInput = document.getElementById('one-time-payment');
+                
+                if (extraMonthlyPaymentInput && extraYearlyPaymentInput && oneTimePaymentInput) {
+                    [extraMonthlyPaymentInput, extraYearlyPaymentInput, oneTimePaymentInput].forEach(input => {
+                        input.addEventListener('input', () => {
+                            calculateExtraPayments(state, elements);
+                        });
+                    });
+                }
+            }
+        } catch (error) {
+            console.warn('Extra Payment Modal initialization failed:', error);
+        }
+    });

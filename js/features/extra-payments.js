@@ -1,18 +1,24 @@
 import { formatCurrency } from '../utils.js';
 
 export const calculateExtraPayments = (state, elements) => { 
+	// Check if state and currentScenarioData exist
+	if (!state || !state.currentScenarioData) {
+		document.getElementById('extra-payment-results').innerHTML = '<p>Calculate a loan first to see extra payment effects.</p>';
+		return;
+	}
+	
 	const { amortizationData, totalInterest } = state.currentScenarioData; 
 	if (!amortizationData || amortizationData.length === 0) { 
-		elements.extraPaymentResultsEl.innerHTML = '<p>Calculate a loan first to see extra payment effects.</p>'; 
+		document.getElementById('extra-payment-results').innerHTML = '<p>Calculate a loan first to see extra payment effects.</p>'; 
 		return; 
 	} 
 
-	const extraMonthly = parseFloat(elements.extraMonthlyPaymentInput.value) || 0; 
-	const extraYearly = parseFloat(elements.extraYearlyPaymentInput.value) || 0; 
-	const oneTime = parseFloat(elements.oneTimePaymentInput.value) || 0; 
+	const extraMonthly = parseFloat(document.getElementById('extra-monthly-payment')?.value) || 0; 
+	const extraYearly = parseFloat(document.getElementById('extra-yearly-payment')?.value) || 0; 
+	const oneTime = parseFloat(document.getElementById('one-time-payment')?.value) || 0; 
 
 	if (extraMonthly === 0 && extraYearly === 0 && oneTime === 0) { 
-		elements.extraPaymentResultsEl.innerHTML = '<p>Enter an extra payment amount to see your savings.</p>'; 
+		document.getElementById('extra-payment-results').innerHTML = '<p>Enter an extra payment amount to see your savings.</p>'; 
 		return; 
 	} 
 
@@ -46,7 +52,7 @@ export const calculateExtraPayments = (state, elements) => {
 	const interestSaved = totalInterest - newTotalInterest; 
 	const yearsSaved = (amortizationData.length - months) / 12; 
 
-	elements.extraPaymentResultsEl.innerHTML = ` 
+	document.getElementById('extra-payment-results').innerHTML = ` 
 		<div class="flex justify-around items-center"> 
 			<div> 
 				<p class="text-sm text-gray-400">New Payoff Time</p> 
