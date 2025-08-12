@@ -64,6 +64,16 @@ input[type=number] {
 .chart-segment { 
 	transition: transform 0.2s ease-in-out; 
 	transform-origin: center; 
+}
+
+/* Consistent carrot styling across all devices */
+.bucket-caret, #closing-costs-arrow, #monthly-breakdown-arrow {
+	font-family: 'Inter', sans-serif;
+	font-size: 12px;
+	line-height: 1;
+	display: inline-block;
+	width: 12px;
+	text-align: center;
 } 
 .chart-segment:hover { 
 	transform: scale(1.05); 

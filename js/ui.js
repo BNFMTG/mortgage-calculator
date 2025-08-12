@@ -50,7 +50,25 @@ export const updateUI = (data, state, elements) => {
 	} 
 
 	// Update chart with final values (respects user overrides) - these should be current after property type changes
-	updateCustomChart(data.monthlyPI, data.monthlyTax, data.monthlyInsurance, data.monthlyMI, data.monthlyHOA, elements.svgChart); 
+	updateCustomChart(data.monthlyPI, data.monthlyTax, data.monthlyInsurance, data.monthlyMI, data.monthlyHOA, elements.svgChart);
+	
+	// Update warnings
+	if (elements.downPaymentWarningEl) {
+		elements.downPaymentWarningEl.textContent = data.dpWarningMsg;
+		elements.downPaymentWarningEl.classList.toggle('hidden', !data.dpWarningMsg);
+	}
+	if (elements.fhaSuggestionWarningEl) {
+		elements.fhaSuggestionWarningEl.textContent = data.fhaSuggestionMsg;
+		elements.fhaSuggestionWarningEl.classList.toggle('hidden', !data.fhaSuggestionMsg);
+	}
+	if (elements.hoaWarningEl) {
+		elements.hoaWarningEl.textContent = `A ${state.propertyType === 'condo' ? 'condo' : 'townhome'} most likely has an HOA fee.`;
+		elements.hoaWarningEl.classList.toggle('hidden', !data.showHoaWarning);
+	}
+	if (elements.creditScoreWarningEl) {
+		elements.creditScoreWarningEl.textContent = data.estimatedInterestRateWarning;
+		elements.creditScoreWarningEl.classList.toggle('hidden', !data.estimatedInterestRateWarning);
+	} 
 	
 	elements.amortizationTableBody.innerHTML = data.amortizationData.map(row => ` 
 		<tr> 

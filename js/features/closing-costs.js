@@ -100,6 +100,19 @@ export const calculateClosingCosts = (data, state, elements) => {
     };
 
     let html = '<div class="space-y-4">';
+    
+    // Add collapse/expand all buttons
+    html += `
+        <div class="flex justify-center gap-2 mb-2">
+            <button id="expand-all-closing-costs" class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg transition-colors">
+                Expand All
+            </button>
+            <button id="collapse-all-closing-costs" class="text-xs bg-slate-600 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+                Collapse All
+            </button>
+        </div>
+    `;
+    
     Object.entries(buckets).forEach(([name, items]) => {
         if (items.length > 0) html += renderBucket(name, items);
     });
@@ -130,4 +143,30 @@ export const calculateClosingCosts = (data, state, elements) => {
             }
         });
     });
+    
+    // Wire up collapse/expand all buttons
+    const expandAllBtn = container.querySelector('#expand-all-closing-costs');
+    const collapseAllBtn = container.querySelector('#collapse-all-closing-costs');
+    
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', () => {
+            const allPanels = container.querySelectorAll('[id^="bucket-"]');
+            const allArrows = container.querySelectorAll('.bucket-caret');
+            
+            // Expand all
+            allPanels.forEach(panel => panel.classList.remove('hidden'));
+            allArrows.forEach(arrow => arrow.textContent = '▼');
+        });
+    }
+    
+    if (collapseAllBtn) {
+        collapseAllBtn.addEventListener('click', () => {
+            const allPanels = container.querySelectorAll('[id^="bucket-"]');
+            const allArrows = container.querySelectorAll('.bucket-caret');
+            
+            // Collapse all
+            allPanels.forEach(panel => panel.classList.add('hidden'));
+            allArrows.forEach(arrow => arrow.textContent = '▶');
+        });
+    }
 };

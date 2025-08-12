@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		
 		input.addEventListener('input', () => {
 			let data;
-			// If this is the interest rate input, preserve current down payment and loan amount
+			// If this is the interest rate input, preserve current down payment and loan amount (INPUT EVENT)
 			if (isInterestRateInput) {
 				// Store current values before calculation
 				const currentDownPayment = parseFloat(downPaymentDollarInput.value) || 0;
@@ -219,16 +219,6 @@ document.addEventListener('DOMContentLoaded', function () {
 			}
 			
 			updateUI(data, state, elements);
-			
-			// Update warnings
-			downPaymentWarningEl.textContent = data.dpWarningMsg; 
-			downPaymentWarningEl.classList.toggle('hidden', !data.dpWarningMsg); 
-			fhaSuggestionWarningEl.textContent = data.fhaSuggestionMsg; 
-			fhaSuggestionWarningEl.classList.toggle('hidden', !data.fhaSuggestionMsg); 
-			hoaWarningEl.textContent = `A ${state.propertyType} most likely has an HOA fee.`; 
-			hoaWarningEl.classList.toggle('hidden', !data.showHoaWarning); 
-			creditScoreWarningEl.textContent = data.estimatedInterestRateWarning; 
-			creditScoreWarningEl.classList.toggle('hidden', !data.estimatedInterestRateWarning);
 			
 			// Store current scenario data with proper loan type and closing costs
 			updateCurrentScenarioData(data, state, elements);
@@ -239,7 +229,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		}); 
 		input.addEventListener('change', () => {
 			let data;
-			// If this is the interest rate input, preserve current down payment and loan amount
+			// If this is the interest rate input, preserve current down payment and loan amount (CHANGE EVENT)
 			if (isInterestRateInput) {
 				// Store current values before calculation
 				const currentDownPayment = parseFloat(downPaymentDollarInput.value) || 0;
@@ -271,16 +261,6 @@ document.addEventListener('DOMContentLoaded', function () {
 			}
 			
 			updateUI(data, state, elements);
-			
-			// Update warnings
-			downPaymentWarningEl.textContent = data.dpWarningMsg; 
-			downPaymentWarningEl.classList.toggle('hidden', !data.dpWarningMsg); 
-			fhaSuggestionWarningEl.textContent = data.fhaSuggestionMsg; 
-			fhaSuggestionWarningEl.classList.toggle('hidden', !data.fhaSuggestionMsg); 
-			hoaWarningEl.textContent = `A ${state.propertyType} most likely has an HOA fee.`; 
-			hoaWarningEl.classList.toggle('hidden', !data.showHoaWarning); 
-			creditScoreWarningEl.textContent = data.estimatedInterestRateWarning; 
-			creditScoreWarningEl.classList.toggle('hidden', !data.estimatedInterestRateWarning);
 			
 			// Store current scenario data with proper loan type and closing costs
 			updateCurrentScenarioData(data, state, elements);
